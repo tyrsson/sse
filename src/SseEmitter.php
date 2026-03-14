@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Webware\SSE;
 
 use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitterTrait;
 use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 
@@ -32,6 +33,8 @@ use RuntimeException;
  */
 final class SseEmitter implements EmitterInterface
 {
+    use SapiEmitterTrait;
+
     private readonly int $heartbeatInterval;
 
     /**
@@ -83,31 +86,31 @@ final class SseEmitter implements EmitterInterface
 
     // -------------------------------------------------------------------------
 
-    private function emitStatusLine(ResponseInterface $response): void
-    {
-        $reasonPhrase = $response->getReasonPhrase();
-        $statusCode   = $response->getStatusCode();
-        $protocolVersion = $response->getProtocolVersion();
+    // private function emitStatusLine(ResponseInterface $response): void
+    // {
+    //     $reasonPhrase = $response->getReasonPhrase();
+    //     $statusCode   = $response->getStatusCode();
+    //     $protocolVersion = $response->getProtocolVersion();
 
-        header(sprintf(
-            'HTTP/%s %d%s',
-            $protocolVersion,
-            $statusCode,
-            ($reasonPhrase !== '' ? ' ' . $reasonPhrase : ''),
-        ), true, $statusCode);
-    }
+    //     header(sprintf(
+    //         'HTTP/%s %d%s',
+    //         $protocolVersion,
+    //         $statusCode,
+    //         ($reasonPhrase !== '' ? ' ' . $reasonPhrase : ''),
+    //     ), true, $statusCode);
+    // }
 
-    private function emitHeaders(ResponseInterface $response): void
-    {
-        foreach ($response->getHeaders() as $name => $values) {
-            $name  = (string) $name;
-            $first = true;
-            foreach ($values as $value) {
-                header($name . ': ' . $value, $first);
-                $first = false;
-            }
-        }
-    }
+    // private function emitHeaders(ResponseInterface $response): void
+    // {
+    //     foreach ($response->getHeaders() as $name => $values) {
+    //         $name  = (string) $name;
+    //         $first = true;
+    //         foreach ($values as $value) {
+    //             header($name . ': ' . $value, $first);
+    //             $first = false;
+    //         }
+    //     }
+    // }
 
     /**
      * Iterate the generator and write SSE frames to the output buffer.
@@ -151,14 +154,14 @@ final class SseEmitter implements EmitterInterface
     /**
      * @throws RuntimeException
      */
-    private function assertNoPreviousOutput(): void
-    {
-        if (headers_sent($file, $line)) {
-            throw new RuntimeException(sprintf(
-                'Unable to emit SSE response: headers already sent in %s on line %d.',
-                $file,
-                $line,
-            ));
-        }
-    }
+    // private function assertNoPreviousOutput(): void
+    // {
+    //     if (headers_sent($file, $line)) {
+    //         throw new RuntimeException(sprintf(
+    //             'Unable to emit SSE response: headers already sent in %s on line %d.',
+    //             $file,
+    //             $line,
+    //         ));
+    //     }
+    // }
 }

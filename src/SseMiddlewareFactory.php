@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
-use Laminas\ServiceManager\Factory\FactoryInterface;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -21,7 +20,7 @@ use Psr\Container\ContainerInterface;
  *       fn (ServerRequestInterface $req, ?string $id): Generator => myStream($req, $id)
  *   ));
  */
-final class SseMiddlewareFactory implements FactoryInterface
+final class SseMiddlewareFactory
 {
     /**
      * @param array<mixed>|null $options
