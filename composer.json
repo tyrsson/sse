@@ -1,17 +1,17 @@
 {
-    "name": "tyrsson/repo-template",
-    "description": "A template repository for new PHP projects",
+    "name": "webware/sse",
+    "description": "A PHP library for Server-Sent Events (SSE) that provides a simple and efficient way to send real-time updates from the server to the client.",
     "license": "BSD-3-Clause",
     "keywords": [
-        "template",
-        "repository",
+        "sse",
+        "server-sent events",
         "php"
     ],
     "authors": [
         {
             "name": "Joey (aka Tyrsson) Smith",
             "email": "jsmith@webinertia.net",
-            "homepage": "https://github.com/tyrsson/repo-template/discussions",
+            "homepage": "https://github.com/tyrsson/sse/discussions",
             "role": "Developer"
         }
     ],
@@ -27,25 +27,35 @@
         }
     },
     "require": {
-        "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0"
+        "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+        "laminas/laminas-diactoros": "^3.0",
+        "laminas/laminas-httphandlerrunner": "^2.0",
+        "psr/container": "^2.0",
+        "psr/http-message": "^2.0",
+        "psr/http-server-handler": "^1.0",
+        "psr/http-server-middleware": "^1.0"
     },
     "require-dev": {
+        "laminas/laminas-servicemanager": "^4.0",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-phpunit": "^2.0",
         "phpunit/phpunit": "^11.5.42",
         "roave/security-advisories": "dev-master",
         "webware/coding-standard": "^0.1.0"
     },
+    "suggest": {
+        "laminas/laminas-servicemanager": "Provides ServiceManager integration for Mezzio applications; required to use the bundled ConfigProvider with laminas-servicemanager-based containers"
+    },
     "autoload": {
         "psr-4": {
-            "Tyrsson\\RepoTemplate\\": "src/"
+            "Webware\\SSE\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "TyrssonIntegrationTest\\RepoTemplate\\": "test/integration/",
-            "TyrssonTestAsset\\RepoTemplate\\": "test/asset/",
-            "TyrssonTest\\RepoTemplate\\": "test/unit/"
+            "WebwareIntegrationTest\\SSE\\": "test/integration/",
+            "WebwareTestAsset\\SSE\\": "test/asset/",
+            "WebwareTest\\SSE\\": "test/unit/"
         }
     },
     "scripts": {
