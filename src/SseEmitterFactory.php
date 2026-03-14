@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
-use Laminas\ServiceManager\Factory\FactoryInterface;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -14,7 +13,7 @@ use Psr\Container\ContainerInterface;
  * it to the SseEmitter constructor so that it can resolve "webware_sse"
  * configuration such as the heartbeat interval.
  */
-final class SseEmitterFactory implements FactoryInterface
+final class SseEmitterFactory
 {
     /**
      * @param array<mixed>|null $options
