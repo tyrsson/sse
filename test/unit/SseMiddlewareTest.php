@@ -2,6 +2,16 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of the Webware Sse package.
+ *
+ * Copyright (c) 2026 Joey (aka Tyrsson) Smith <jsmith@webinertia.net>
+ * and contributors.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace WebwareTest\SSE;
 
 use Generator;
@@ -19,22 +29,6 @@ use Webware\SSE\SseResponse;
 #[CoversClass(SseMiddleware::class)]
 final class SseMiddlewareTest extends TestCase
 {
-    /**
-     * @phpstan-return RequestHandlerInterface&object{capturedRequest: ServerRequestInterface|null}
-     */
-    private function makePassthroughHandler(): RequestHandlerInterface
-    {
-        return new class implements RequestHandlerInterface {
-            public ?ServerRequestInterface $capturedRequest = null;
-
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                $this->capturedRequest = $request;
-                return new TextResponse('ok');
-            }
-        };
-    }
-
     // -------------------------------------------------------------------------
     // Preprocessor mode (no factory)
     // -------------------------------------------------------------------------
@@ -120,11 +114,12 @@ final class SseMiddlewareTest extends TestCase
         $middleware = new SseMiddleware(
             static function (ServerRequestInterface $req, ?string $id) use (&$receivedId): Generator {
                 $receivedId = $id;
+
                 yield new Event(data: 'ok');
             },
         );
 
-        $request = (new ServerRequest())->withHeader('Last-Event-ID', '42');
+        $request  = (new ServerRequest())->withHeader('Last-Event-ID', '42');
         $response = $middleware->process($request, $this->makePassthroughHandler());
         // Advance the generator so its body executes up to the first yield.
         assert($response instanceof SseResponse);
@@ -140,6 +135,7 @@ final class SseMiddlewareTest extends TestCase
         $middleware = new SseMiddleware(
             static function (ServerRequestInterface $req, ?string $id) use (&$receivedId): Generator {
                 $receivedId = $id;
+
                 yield new Event(data: 'ok');
             },
         );
@@ -154,7 +150,24 @@ final class SseMiddlewareTest extends TestCase
 
     public function testLastEventIdConstantValue(): void
     {
-        /** @phpstan-ignore method.alreadyNarrowedType */
+        // @phpstan-ignore method.alreadyNarrowedType
         $this->assertSame('SSE_LAST_EVENT_ID', SseMiddleware::LAST_EVENT_ID);
+    }
+
+    /**
+     * @phpstan-return RequestHandlerInterface&object{capturedRequest: ServerRequestInterface|null}
+     */
+    private function makePassthroughHandler(): RequestHandlerInterface
+    {
+        return new class() implements RequestHandlerInterface {
+            public ?ServerRequestInterface $capturedRequest = null;
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                $this->capturedRequest = $request;
+
+                return new TextResponse('ok');
+            }
+        };
     }
 }

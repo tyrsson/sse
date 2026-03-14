@@ -2,6 +2,16 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of the Webware Sse package.
+ *
+ * Copyright (c) 2026 Joey (aka Tyrsson) Smith <jsmith@webinertia.net>
+ * and contributors.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace WebwareTest\SSE;
 
 use Generator;
@@ -13,11 +23,6 @@ use Webware\SSE\SseResponse;
 #[CoversClass(SseResponse::class)]
 final class SseResponseTest extends TestCase
 {
-    private function makeGenerator(): Generator
-    {
-        yield new Event(data: 'test');
-    }
-
     public function testStatusCodeDefaultsTo200(): void
     {
         $response = new SseResponse($this->makeGenerator());
@@ -78,5 +83,10 @@ final class SseResponseTest extends TestCase
         $response = new SseResponse($this->makeGenerator());
 
         $this->assertSame('', (string) $response->getBody());
+    }
+
+    private function makeGenerator(): Generator
+    {
+        yield new Event(data: 'test');
     }
 }
