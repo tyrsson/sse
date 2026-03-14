@@ -2,8 +2,19 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of the Webware Sse package.
+ *
+ * Copyright (c) 2026 Joey (aka Tyrsson) Smith <jsmith@webinertia.net>
+ * and contributors.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Webware\SSE;
 
+use Generator;
 use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitterTrait;
 use Psr\Http\Message\ResponseInterface;
@@ -46,7 +57,7 @@ final class SseEmitter implements EmitterInterface
         /** @var array<string, mixed> $sseConfig */
         $sseConfig = $config['webware_sse'] ?? [];
 
-        $interval = $sseConfig['heartbeat_interval'] ?? 15;
+        $interval                = $sseConfig['heartbeat_interval'] ?? 15;
         $this->heartbeatInterval = is_int($interval) && $interval > 0 ? $interval : 15;
     }
 
@@ -120,9 +131,9 @@ final class SseEmitter implements EmitterInterface
      *   sends an automatic keep-alive comment when the heartbeat interval
      *   elapses between events.
      *
-     * @param \Generator<mixed, EventInterface|null, mixed, mixed> $stream
+     * @param Generator<mixed, EventInterface|null, mixed, mixed> $stream
      */
-    private function streamEvents(\Generator $stream): void
+    private function streamEvents(Generator $stream): void
     {
         $lastActivity = time();
 
@@ -151,9 +162,7 @@ final class SseEmitter implements EmitterInterface
         }
     }
 
-    /**
-     * @throws RuntimeException
-     */
+    // @throws RuntimeException
     // private function assertNoPreviousOutput(): void
     // {
     //     if (headers_sent($file, $line)) {

@@ -2,12 +2,24 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of the Webware Sse package.
+ *
+ * Copyright (c) 2026 Joey (aka Tyrsson) Smith <jsmith@webinertia.net>
+ * and contributors.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace WebwareTest\SSE;
 
 use Generator;
 use Laminas\Diactoros\Response\JsonResponse;
+use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 use Webware\SSE\Event;
 use Webware\SSE\SseEmitter;
 use Webware\SSE\SseResponse;
@@ -28,7 +40,7 @@ final class SseEmitterTest extends TestCase
         $emitter = new SseEmitter();
 
         // Access private property via reflection to verify the default.
-        $ref      = new \ReflectionClass($emitter);
+        $ref      = new ReflectionClass($emitter);
         $property = $ref->getProperty('heartbeatInterval');
         $property->setAccessible(true);
 
@@ -39,7 +51,7 @@ final class SseEmitterTest extends TestCase
     {
         $emitter = new SseEmitter(['webware_sse' => ['heartbeat_interval' => 30]]);
 
-        $ref      = new \ReflectionClass($emitter);
+        $ref      = new ReflectionClass($emitter);
         $property = $ref->getProperty('heartbeatInterval');
         $property->setAccessible(true);
 
@@ -50,7 +62,7 @@ final class SseEmitterTest extends TestCase
     {
         $emitter = new SseEmitter(['webware_sse' => ['heartbeat_interval' => -5]]);
 
-        $ref      = new \ReflectionClass($emitter);
+        $ref      = new ReflectionClass($emitter);
         $property = $ref->getProperty('heartbeatInterval');
         $property->setAccessible(true);
 
@@ -63,7 +75,7 @@ final class SseEmitterTest extends TestCase
 
         // Verify via interface list to avoid PHPStan's "always true" narrowing warning.
         $this->assertContains(
-            \Laminas\HttpHandlerRunner\Emitter\EmitterInterface::class,
+            EmitterInterface::class,
             array_keys(class_implements($emitter) ?: []),
         );
     }
@@ -86,7 +98,7 @@ final class SseEmitterTest extends TestCase
 
         $response = new SseResponse($generator);
 
-        $ref    = new \ReflectionClass($emitter);
+        $ref    = new ReflectionClass($emitter);
         $method = $ref->getMethod('streamEvents');
         $method->setAccessible(true);
 
@@ -110,7 +122,7 @@ final class SseEmitterTest extends TestCase
 
         $response = new SseResponse($generator);
 
-        $ref    = new \ReflectionClass($emitter);
+        $ref    = new ReflectionClass($emitter);
         $method = $ref->getMethod('streamEvents');
         $method->setAccessible(true);
 

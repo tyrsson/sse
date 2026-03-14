@@ -2,6 +2,16 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of the Webware Sse package.
+ *
+ * Copyright (c) 2026 Joey (aka Tyrsson) Smith <jsmith@webinertia.net>
+ * and contributors.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Webware\SSE;
 
 use Generator;
@@ -52,13 +62,12 @@ final class SseMiddleware implements MiddlewareInterface
 
     /**
      * @param callable(ServerRequestInterface, string|null): Generator<mixed, EventInterface|null, mixed, mixed>|null $eventSourceFactory
-     *     Callable that produces the event generator.  Pass null (default) to
-     *     run in preprocessor mode.
+     *                                                                                                                                    Callable that produces the event generator.  Pass null (default) to
+     *                                                                                                                                    run in preprocessor mode.
      */
     public function __construct(
         private readonly mixed $eventSourceFactory = null,
-    ) {
-    }
+    ) {}
 
     public function process(
         ServerRequestInterface $request,
@@ -71,11 +80,13 @@ final class SseMiddleware implements MiddlewareInterface
             // Terminal factory mode: produce and stream events directly.
             /** @var Generator<mixed, EventInterface|null, mixed, mixed> $generator */
             $generator = ($this->eventSourceFactory)($request, $lastEventId);
+
             return new SseResponse($generator);
         }
 
         // Preprocessor mode: enrich the request and delegate.
         $request = $request->withAttribute(self::LAST_EVENT_ID, $lastEventId);
+
         return $handler->handle($request);
     }
 }

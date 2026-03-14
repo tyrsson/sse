@@ -2,6 +2,18 @@
 
 declare(strict_types=1);
 
+use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
+
+/**
+ * This file is part of the Webware Sse package.
+ *
+ * Copyright (c) 2026 Joey (aka Tyrsson) Smith <jsmith@webinertia.net>
+ * and contributors.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Webware\SSE;
 
 /**
@@ -53,6 +65,11 @@ final class ConfigProvider
     public function getDependencies(): array
     {
         return [
+            'delegators' => [
+                EmitterInterface::class => [
+                    EmitterStackDelegatorFactory::class,
+                ],
+            ],
             'factories' => [
                 SseEmitter::class    => SseEmitterFactory::class,
                 SseMiddleware::class => SseMiddlewareFactory::class,

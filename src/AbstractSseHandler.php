@@ -2,6 +2,16 @@
 
 declare(strict_types=1);
 
+/**
+ * This file is part of the Webware Sse package.
+ *
+ * Copyright (c) 2026 Joey (aka Tyrsson) Smith <jsmith@webinertia.net>
+ * and contributors.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Webware\SSE;
 
 use Generator;
@@ -66,9 +76,9 @@ abstract class AbstractSseHandler implements RequestHandlerInterface
      *     elapsed (the emitter decides; the generator just needs to keep going)
      *   - return (or exhaust) to close the stream
      *
-     * @param ServerRequestInterface $request     The current PSR-7 request.
-     * @param string|null            $lastEventId The last event id the client
-     *                                            received, or null on first connect.
+     * @param ServerRequestInterface $request The current PSR-7 request.
+     * @param string|null $lastEventId The last event id the client
+     *                                 received, or null on first connect.
      * @return Generator<mixed, EventInterface|null, mixed, mixed>
      */
     abstract protected function stream(
