@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
-
 /**
  * This file is part of the Webware Sse package.
  *
@@ -15,6 +13,8 @@ use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
  */
 
 namespace Webware\SSE;
+
+use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
 
 /**
  * Mezzio / PSR-11 configuration provider for the webware/sse package.
@@ -70,7 +70,7 @@ final class ConfigProvider
                     EmitterStackDelegatorFactory::class,
                 ],
             ],
-            'factories' => [
+            'factories'  => [
                 SseEmitter::class    => SseEmitterFactory::class,
                 SseMiddleware::class => SseMiddlewareFactory::class,
             ],
