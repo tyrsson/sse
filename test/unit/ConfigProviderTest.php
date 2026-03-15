@@ -69,15 +69,6 @@ final class ConfigProviderTest extends TestCase
         $this->assertSame(SseMiddlewareFactory::class, $factories[SseMiddleware::class]);
     }
 
-    public function testSseConfigContainsHeartbeatInterval(): void
-    {
-        $sseConfig = $this->provider->getSseConfig();
-
-        $this->assertArrayHasKey('heartbeat_interval', $sseConfig);
-        $this->assertIsInt($sseConfig['heartbeat_interval']);
-        $this->assertGreaterThan(0, $sseConfig['heartbeat_interval']);
-    }
-
     public function testSseConfigContainsRetry(): void
     {
         $sseConfig = $this->provider->getSseConfig();

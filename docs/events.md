@@ -133,40 +133,38 @@ This is the correct way to send JSON with embedded newlines — just encode it
 normally and let `Event` split it:
 
 ```php
-yield new Event(data: json_encode($payload, JSON_PRETTY_PRINT));
+$send(new Event(data: json_encode($payload, JSON_PRETTY_PRINT)));
 ```
 
 ---
 
-## The heartbeat signal: `yield null`
+## Polling without events
 
-Yielding `null` from a generator tells the `SseEmitter` that the generator is
-alive but has no event to send right now.  The emitter checks whether the
-configured heartbeat interval has elapsed; if so, it sends an automatic
-`: heartbeat` comment frame.
+When your poll loop finds nothing to send, simply `sleep()` and loop again.
+To keep the connection alive during idle periods, send a comment frame
+periodically (see [SseEmitter — Keep-alive](emitter.md#keep-alive)):
 
 ```php
-protected function stream(ServerRequestInterface $request, ?string $lastEventId): Generator
-{
+protected function stream(
+    ServerRequestInterface $request,
+    callable $send,
+    ?string $lastEventId,
+): void {
     while (true) {
         $events = $this->fetchNewEvents();
 
-        if (empty($events)) {
-            yield null;   // nothing to send — let emitter decide about heartbeat
-            sleep(1);
-            continue;
+        foreach ($events as $ev) {
+            $send(new Event(data: $ev->toJson(), id: $ev->id));
         }
 
-        foreach ($events as $ev) {
-            yield new Event(data: $ev->toJson(), id: $ev->id);
+        if (connection_aborted()) {
+            break;
         }
+
+        sleep(1);
     }
 }
 ```
-
-> **Tip:** You do not need to send `yield null` at a precise interval.  Yield it
-> whenever the generator loops without producing a real event, and the emitter
-> handles the timing.
 
 ---
 
@@ -206,8 +204,44 @@ final class JsonEvent implements EventInterface
 and writes the result:
 
 ```php
-yield new JsonEvent($dto, 'order-update', id: $dto->id);
+$send(new JsonEvent($dto, 'order-update', id: $dto->id));
 ```
+
+---
+
+## Closing the stream: `CloseEvent`
+
+When a finite stream ends, the server closes the connection by returning from
+`stream()`.  The browser's `EventSource` will then automatically reconnect
+after the `retry` timeout.  To prevent reconnection, send a `CloseEvent`
+before returning:
+
+```php
+use Webware\SSE\CloseEvent;
+
+$send(new CloseEvent());
+return;
+```
+
+`CloseEvent` sends the following SSE block:
+
+```
+event: stream-close
+data:
+
+```
+
+In client JavaScript, add one listener that calls `source.close()` when it
+receives this named event:
+
+```js
+const source = new EventSource('/events/progress');
+
+source.addEventListener('stream-close', () => source.close());
+```
+
+The named-event string is available as the constant `CloseEvent::EVENT_NAME`
+(`'stream-close'`) if you need to reference it in PHP.
 
 ---
 

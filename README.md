@@ -5,9 +5,9 @@ A Server-Sent Events (SSE) component for [Mezzio](https://docs.mezzio.dev/) appl
 - **PSR-7 native** — `SseResponse` extends `Laminas\Diactoros\Response`
 - **EmitterStack-aware** — `SseEmitter` implements `EmitterInterface` and returns `false` for non-SSE responses, letting `SapiEmitter` handle the rest
 - **PSR-15 ready** — abstract handler base class and dual-mode middleware
-- **Generator-based** — `yield` events directly from PHP generators for clean, lazy streaming
+- **Callback-based streaming** — implement `stream(ServerRequestInterface $request, callable $send, ?string $lastEventId): void` and call `$send(new Event(...))` to push events
 - **Reconnection support** — `Last-Event-ID` header extracted and forwarded automatically
-- **Built-in heartbeat** — configurable keep-alive comment frames
+- **htmx v2 compatible** — wire format and named events work directly with htmx's `sse` extension
 - **PSR-11 container** — `ConfigProvider` registers services with any PSR-11 container; `laminas-servicemanager` is optional
 
 ---
@@ -49,7 +49,6 @@ $stack->push($container->get(SseEmitter::class));   // handles SseResponse first
 ### 4. Create an event handler
 
 ```php
-use Generator;
 use Psr\Http\Message\ServerRequestInterface;
 use Webware\SSE\AbstractSseHandler;
 use Webware\SSE\Event;
@@ -58,12 +57,15 @@ final class TimeHandler extends AbstractSseHandler
 {
     protected function stream(
         ServerRequestInterface $request,
+        callable $send,
         ?string $lastEventId,
-    ): Generator {
+    ): void {
         while (true) {
-            yield new Event(data: date('H:i:s'), event: 'tick');
+            $send(new Event(data: date('H:i:s'), event: 'tick'));
+            if (connection_aborted()) {
+                break;
+            }
             sleep(1);
-            yield null; // trigger heartbeat check between real events
         }
     }
 }
@@ -75,31 +77,6 @@ final class TimeHandler extends AbstractSseHandler
 // config/routes.php
 $app->get('/events/time', TimeHandler::class);
 ```
-
-### 6. Subscribe in the browser
-
-```html
-<!-- ESM (modern browsers / bundlers) -->
-<script type="module">
-  import { SseClient } from './js/sse-client.js';
-
-  const client = new SseClient('/events/time', {
-    onOpen:  () => console.log('connected'),
-    onError: (err) => console.warn('error', err),
-  });
-
-  client.on('tick', (time) => console.log('server time:', time));
-</script>
-
-<!-- Or via the IIFE global build -->
-<script src="js/sse-client.iife.js"></script>
-<script>
-  const client = new SseClient('/events/time');
-  client.on('tick', (time) => console.log('server time:', time));
-</script>
-```
-
----
 
 ## Documentation
 

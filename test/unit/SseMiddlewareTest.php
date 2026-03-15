@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace WebwareTest\SSE;
 
-use Generator;
 use Laminas\Diactoros\Response\TextResponse;
 use Laminas\Diactoros\ServerRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -23,6 +22,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Webware\SSE\Event;
+use Webware\SSE\EventInterface;
 use Webware\SSE\SseMiddleware;
 use Webware\SSE\SseResponse;
 
@@ -82,8 +82,8 @@ final class SseMiddlewareTest extends TestCase
     public function testTerminalModeReturnsSseResponse(): void
     {
         $middleware = new SseMiddleware(
-            static function (ServerRequestInterface $req, ?string $id): Generator {
-                yield new Event(data: 'hello');
+            static function (ServerRequestInterface $req, callable $send, ?string $id): void {
+                $send(new Event(data: 'hello'));
             },
         );
 
@@ -97,8 +97,8 @@ final class SseMiddlewareTest extends TestCase
         $handler = $this->makePassthroughHandler();
 
         $middleware = new SseMiddleware(
-            static function (ServerRequestInterface $req, ?string $id): Generator {
-                yield new Event(data: 'test');
+            static function (ServerRequestInterface $req, callable $send, ?string $id): void {
+                $send(new Event(data: 'test'));
             },
         );
 
@@ -112,18 +112,17 @@ final class SseMiddlewareTest extends TestCase
         $receivedId = null;
 
         $middleware = new SseMiddleware(
-            static function (ServerRequestInterface $req, ?string $id) use (&$receivedId): Generator {
+            static function (ServerRequestInterface $req, callable $send, ?string $id) use (&$receivedId): void {
                 $receivedId = $id;
-
-                yield new Event(data: 'ok');
+                $send(new Event(data: 'ok'));
             },
         );
 
         $request  = (new ServerRequest())->withHeader('Last-Event-ID', '42');
         $response = $middleware->process($request, $this->makePassthroughHandler());
-        // Advance the generator so its body executes up to the first yield.
+        // Invoke the stream to run the callback.
         assert($response instanceof SseResponse);
-        $response->getEventStream()->current();
+        ($response->getStream())(fn (EventInterface $e) => null);
 
         $this->assertSame('42', $receivedId);
     }
@@ -133,17 +132,16 @@ final class SseMiddlewareTest extends TestCase
         $receivedId = 'NOT_NULL';
 
         $middleware = new SseMiddleware(
-            static function (ServerRequestInterface $req, ?string $id) use (&$receivedId): Generator {
+            static function (ServerRequestInterface $req, callable $send, ?string $id) use (&$receivedId): void {
                 $receivedId = $id;
-
-                yield new Event(data: 'ok');
+                $send(new Event(data: 'ok'));
             },
         );
 
         $response = $middleware->process(new ServerRequest(), $this->makePassthroughHandler());
-        // Advance the generator so its body executes up to the first yield.
+        // Invoke the stream to run the callback.
         assert($response instanceof SseResponse);
-        $response->getEventStream()->current();
+        ($response->getStream())(fn (EventInterface $e) => null);
 
         $this->assertNull($receivedId);
     }

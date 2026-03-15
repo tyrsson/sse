@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace WebwareTest\SSE;
 
-use Generator;
 use Laminas\Diactoros\Response\JsonResponse;
 use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -35,37 +34,6 @@ final class SseEmitterTest extends TestCase
         $this->assertFalse($emitter->emit($response));
     }
 
-    public function testHeartbeatIntervalDefaultsTo15(): void
-    {
-        $emitter = new SseEmitter();
-
-        // Access private property via reflection to verify the default.
-        $ref      = new ReflectionClass($emitter);
-        $property = $ref->getProperty('heartbeatInterval');
-
-        $this->assertSame(15, $property->getValue($emitter));
-    }
-
-    public function testHeartbeatIntervalFromConfig(): void
-    {
-        $emitter = new SseEmitter(['webware_sse' => ['heartbeat_interval' => 30]]);
-
-        $ref      = new ReflectionClass($emitter);
-        $property = $ref->getProperty('heartbeatInterval');
-
-        $this->assertSame(30, $property->getValue($emitter));
-    }
-
-    public function testInvalidHeartbeatIntervalFallsBackToDefault(): void
-    {
-        $emitter = new SseEmitter(['webware_sse' => ['heartbeat_interval' => -5]]);
-
-        $ref      = new ReflectionClass($emitter);
-        $property = $ref->getProperty('heartbeatInterval');
-
-        $this->assertSame(15, $property->getValue($emitter));
-    }
-
     public function testEmitterImplementsEmitterInterface(): void
     {
         $emitter = new SseEmitter();
@@ -78,28 +46,23 @@ final class SseEmitterTest extends TestCase
     }
 
     /**
-     * Verify that the emitter iterates the generator.
-     * We run the "emit" logic with output buffering so we can capture output.
-     * The generator yields one event and then completes.
+     * Verify that streamEvents flushes the formatted event to output.
      */
     public function testEmitsCapturedOutput(): void
     {
-        // We need headers to not be sent yet — in PHPUnit CLI this is normally
-        // fine; assertNoPreviousOutput will pass.  We reflectively call the
-        // private streamEvents method to avoid the header-emission path.
         $emitter = new SseEmitter();
 
-        $generator = (static function (): Generator {
-            yield new Event(data: 'hello', id: '1');
-        })();
-
-        $response = new SseResponse($generator);
+        $response = new SseResponse(
+            static function (callable $send): void {
+                $send(new Event(data: 'hello', id: '1'));
+            },
+        );
 
         $ref    = new ReflectionClass($emitter);
         $method = $ref->getMethod('streamEvents');
 
         ob_start();
-        $method->invoke($emitter, $response->getEventStream());
+        $method->invoke($emitter, $response);
         $output = ob_get_clean();
 
         $this->assertNotFalse($output);
@@ -107,25 +70,24 @@ final class SseEmitterTest extends TestCase
         $this->assertStringContainsString("id: 1\n", (string) $output);
     }
 
-    public function testNullYieldDoesNotOutputWhenBelowInterval(): void
+    public function testStreamCallableIsInvoked(): void
     {
-        // With heartbeat_interval = 9999, a null yield should not emit anything.
-        $emitter = new SseEmitter(['webware_sse' => ['heartbeat_interval' => 9999]]);
+        $emitter = new SseEmitter();
+        $invoked = false;
 
-        $generator = (static function (): Generator {
-            yield null;
-        })();
-
-        $response = new SseResponse($generator);
+        $response = new SseResponse(
+            static function (callable $send) use (&$invoked): void {
+                $invoked = true;
+            },
+        );
 
         $ref    = new ReflectionClass($emitter);
         $method = $ref->getMethod('streamEvents');
 
         ob_start();
-        $method->invoke($emitter, $response->getEventStream());
-        $output = ob_get_clean();
+        $method->invoke($emitter, $response);
+        ob_get_clean();
 
-        $this->assertNotFalse($output);
-        $this->assertSame('', (string) $output);
+        $this->assertTrue($invoked);
     }
 }

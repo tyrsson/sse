@@ -33,9 +33,6 @@ final class SseEmitterFactory
         string $requestedName,
         ?array $options = null,
     ): SseEmitter {
-        /** @var array<string, mixed> $config */
-        $config = $container->has('config') ? $container->get('config') : [];
-
-        return new SseEmitter($config);
+        return new SseEmitter();
     }
 }

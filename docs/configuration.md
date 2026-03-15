@@ -38,30 +38,7 @@ All package configuration lives under the top-level `webware_sse` key.
 // config/autoload/sse.global.php
 return [
     'webware_sse' => [
-        'heartbeat_interval' => 15,   // seconds — default
-        'retry'              => 3000,  // milliseconds — default
-    ],
-];
-```
-
-### `heartbeat_interval`
-
-| Type | Default | Unit |
-|---|---|---|
-| `int` (> 0) | `15` | seconds |
-
-How often the `SseEmitter` sends a keep-alive comment frame (`: heartbeat`)
-when the event generator has not yielded a real event.  Prevents proxies and
-load balancers from closing idle connections.
-
-An invalid value (zero, negative, or non-integer) falls back silently to `15`.
-
-**Override example** — increase to 30 seconds for a low-traffic endpoint:
-
-```php
-return [
-    'webware_sse' => [
-        'heartbeat_interval' => 30,
+        'retry' => 3000,  // milliseconds — default
     ],
 ];
 ```
@@ -80,7 +57,7 @@ reconnecting after a dropped connection:
 ```php
 $retry = $config['webware_sse']['retry'];   // 3000 ms
 
-yield new Event(data: $payload, retry: $retry);
+$send(new Event(data: $payload, retry: $retry));
 ```
 
 **Override example** — shorten reconnect time to 1 second for a real-time feed:
@@ -103,7 +80,7 @@ register the two services manually:
 ```php
 // Using any PSR-11 container that understands a factory map
 $container->bind(SseEmitter::class, function ($c) {
-    return new SseEmitter($c->get('config'));
+    return new SseEmitter();
 });
 
 $container->bind(SseMiddleware::class, function ($c) {
@@ -122,10 +99,6 @@ understood by any compatible container (e.g. Aura.Di, PHP-DI with a bridge).
 ```php
 return [
     'webware_sse' => [
-
-        // Seconds between automatic ": heartbeat" keep-alive frames.
-        // Must be a positive integer; invalid values fall back to 15.
-        'heartbeat_interval' => 15,
 
         // Milliseconds the browser EventSource waits before reconnecting.
         // Informational — read this in your handler and pass to Event::$retry.

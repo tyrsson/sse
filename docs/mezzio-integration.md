@@ -53,8 +53,7 @@ Create a global config file to tune the package defaults:
 // config/autoload/sse.global.php
 return [
     'webware_sse' => [
-        'heartbeat_interval' => 20,   // seconds between keep-alive frames
-        'retry'              => 5000,  // ms before browser reconnects
+        'retry' => 5000,  // ms before browser reconnects
     ],
 ];
 ```
@@ -135,7 +134,6 @@ declare(strict_types=1);
 
 namespace App\Handler;
 
-use Generator;
 use Psr\Http\Message\ServerRequestInterface;
 use Webware\SSE\AbstractSseHandler;
 use Webware\SSE\Event;
@@ -149,8 +147,9 @@ final class NotificationHandler extends AbstractSseHandler
 
     protected function stream(
         ServerRequestInterface $request,
+        callable $send,
         ?string $lastEventId,
-    ): Generator {
+    ): void {
         $userId = $request->getAttribute('userId');  // set by auth middleware
         $cursor = $lastEventId ?? '0';
 
@@ -159,16 +158,16 @@ final class NotificationHandler extends AbstractSseHandler
 
             foreach ($items as $item) {
                 $cursor = $item->id;
-                yield new Event(
+                $send(new Event(
                     data:  json_encode($item, JSON_THROW_ON_ERROR),
                     event: 'notification',
                     id:    $cursor,
                     retry: $this->retryMs,
-                );
+                ));
             }
 
-            if (empty($items)) {
-                yield null;
+            if (connection_aborted()) {
+                break;
             }
 
             sleep(2);
@@ -195,11 +194,9 @@ final class NotificationHandlerFactory
 {
     public function __invoke(ContainerInterface $container): NotificationHandler
     {
-        $config = $container->get('config');
-
         return new NotificationHandler(
             $container->get(NotificationRepository::class),
-            $config['webware_sse']['retry'],
+            $container->get('config')['webware_sse']['retry'],
         );
     }
 }
@@ -282,17 +279,18 @@ and sends the id of the last event it received (`Last-Event-ID` header).
 
 If your Mezzio app and your front-end are on different origins, the browser
 will block `EventSource` connections unless the server sends appropriate CORS
-headers.  The simplest approach is to add the header to `SseResponse`:
+headers.  Add the header by overriding `handle()` in your handler:
 
 ```php
 // In your handler:
-return new SseResponse(
-    $this->stream($request, $lastEventId),
-    headers: ['Access-Control-Allow-Origin' => 'https://your-frontend.example.com'],
-);
+public function handle(ServerRequestInterface $request): ResponseInterface
+{
+    return parent::handle($request)
+        ->withHeader('Access-Control-Allow-Origin', 'https://your-frontend.example.com');
+}
 ```
 
-Or override `handle()` in your base class to add the header globally:
+Or create a shared base class to apply CORS across all SSE handlers:
 
 ```php
 abstract class AppSseHandler extends AbstractSseHandler
