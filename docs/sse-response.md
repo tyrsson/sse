@@ -8,7 +8,7 @@ interoperable with any code that works with `Psr\Http\Message\ResponseInterface`
 
 The body of the response is intentionally **empty** — `SseEmitter` bypasses
 the PSR-7 body entirely and writes directly to PHP's output buffer as it
-iterates the generator.  This avoids loading the entire event stream into
+invokes the stream callable.  This avoids loading the entire event stream into
 memory.
 
 ---
@@ -18,18 +18,17 @@ memory.
 ```php
 namespace Webware\SSE;
 
-use Generator;
 use Laminas\Diactoros\Response;
 
 final class SseResponse extends Response
 {
     public function __construct(
-        Generator $eventStream,
+        callable $stream,
         int $status = 200,
         array $headers = [],
     );
 
-    public function getEventStream(): Generator;
+    public function getStream(): callable;
 }
 ```
 
@@ -37,21 +36,25 @@ final class SseResponse extends Response
 
 ## Constructor
 
-### `$eventStream`
+### `$stream`
 
-A PHP `Generator` that `yield`s `EventInterface` instances or `null`.
+A callable with the signature `function (callable $send): void`.
+
+`$send` is a callback provided by `SseEmitter` that writes a formatted event
+frame to the output buffer.  Your callable should loop, call `$send(new Event(...))`
+for each event, and return when the stream is finished.
 
 ```php
-$stream = (function (): Generator {
-    yield new Event(data: 'first');
-    yield new Event(data: 'second');
-})();
+$stream = static function (callable $send): void {
+    $send(new Event(data: 'first'));
+    $send(new Event(data: 'second'));
+};
 
 $response = new SseResponse($stream);
 ```
 
-The generator is stored as-is; it is not started until `SseEmitter` iterates
-it.
+The callable is stored as-is; it is not invoked until `SseEmitter` emits the
+response.
 
 ### `$status`
 
@@ -90,23 +93,22 @@ $response = new SseResponse($stream, headers: [
 
 ---
 
-## `getEventStream()`
+## `getStream()`
 
-Returns the `Generator` stored inside the response.  `SseEmitter` calls this
-to obtain the stream.  You rarely need to call it in application code.
+Returns the stream callable stored inside the response.  `SseEmitter` calls
+this to obtain and invoke the stream.  You rarely need to call it in
+application code.
 
 ```php
-$generator = $response->getEventStream();
+$stream = $response->getStream();
+// callable(callable(EventInterface): void): void
 
 // SseEmitter does roughly this:
-while ($generator->valid()) {
-    $event = $generator->current();
-    if ($event instanceof EventInterface) {
-        echo $event->format();
-        flush();
-    }
-    $generator->next();
-}
+$send = static function (EventInterface $event): void {
+    echo $event->format();
+    flush();
+};
+($response->getStream())($send);
 ```
 
 ---
@@ -124,8 +126,8 @@ $withCors = $response->withHeader('Access-Control-Allow-Origin', '*');
 ```
 
 Note that `withBody()` replaces the PSR-7 body stream — it does **not** affect
-the `Generator` stored by `getEventStream()`.  `SseEmitter` ignores the PSR-7
-body and always reads from `getEventStream()`.
+the stream callable stored by `getStream()`.  `SseEmitter` ignores the PSR-7
+body and always reads from `getStream()`.
 
 ---
 
@@ -133,16 +135,19 @@ body and always reads from `getEventStream()`.
 
 Both approaches produce the same `SseResponse`:
 
-**From `AbstractSseHandler`** — the base class wraps the generator automatically:
+**From `AbstractSseHandler`** — the base class wraps the stream callable automatically:
 
 ```php
 final class MyHandler extends AbstractSseHandler
 {
-    protected function stream(ServerRequestInterface $req, ?string $lastId): Generator
-    {
-        yield new Event(data: 'hello');
+    protected function stream(
+        ServerRequestInterface $req,
+        callable $send,
+        ?string $lastId,
+    ): void {
+        $send(new Event(data: 'hello'));
     }
-    // handle() returns new SseResponse($this->stream($req, $lastId)) for you
+    // handle() returns new SseResponse(fn(callable $send) => $this->stream($req, $send, $lastId)) for you
 }
 ```
 
@@ -150,9 +155,9 @@ final class MyHandler extends AbstractSseHandler
 
 ```php
 return new SseResponse(
-    (function (): Generator {
-        yield new Event(data: 'hello');
-    })(),
+    static function (callable $send): void {
+        $send(new Event(data: 'hello'));
+    },
 );
 ```
 

@@ -15,7 +15,6 @@ declare(strict_types=1);
 namespace WebwareTest\SSE;
 
 use Closure;
-use Generator;
 use Laminas\Diactoros\ServerRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
@@ -42,18 +41,17 @@ final class AbstractSseHandlerTest extends TestCase
         $receivedId = null;
 
         $handler = $this->makeConcreteHandler(
-            function (ServerRequestInterface $req, ?string $lastEventId) use (&$receivedId): Generator {
+            function (ServerRequestInterface $req, callable $send, ?string $lastEventId) use (&$receivedId): void {
                 $receivedId = $lastEventId;
-
-                yield new Event(data: 'ok');
+                $send(new Event(data: 'ok'));
             },
         );
 
         $request  = (new ServerRequest())->withHeader('Last-Event-ID', '99');
         $response = $handler->handle($request);
-        // Advance the generator so its body executes up to the first yield.
+        // Invoke the stream to run the callback.
         $this->assertInstanceOf(SseResponse::class, $response);
-        $response->getEventStream()->current();
+        ($response->getStream())(fn (EventInterface $e) => null);
 
         $this->assertSame('99', $receivedId);
     }
@@ -63,17 +61,16 @@ final class AbstractSseHandlerTest extends TestCase
         $receivedId = 'NOT_NULL';
 
         $handler = $this->makeConcreteHandler(
-            function (ServerRequestInterface $req, ?string $lastEventId) use (&$receivedId): Generator {
+            function (ServerRequestInterface $req, callable $send, ?string $lastEventId) use (&$receivedId): void {
                 $receivedId = $lastEventId;
-
-                yield new Event(data: 'ok');
+                $send(new Event(data: 'ok'));
             },
         );
 
         $response = $handler->handle(new ServerRequest());
-        // Advance the generator so its body executes up to the first yield.
+        // Invoke the stream to run the callback.
         $this->assertInstanceOf(SseResponse::class, $response);
-        $response->getEventStream()->current();
+        ($response->getStream())(fn (EventInterface $e) => null);
 
         $this->assertNull($receivedId);
     }
@@ -83,18 +80,17 @@ final class AbstractSseHandlerTest extends TestCase
         $receivedId = 'NOT_NULL';
 
         $handler = $this->makeConcreteHandler(
-            function (ServerRequestInterface $req, ?string $lastEventId) use (&$receivedId): Generator {
+            function (ServerRequestInterface $req, callable $send, ?string $lastEventId) use (&$receivedId): void {
                 $receivedId = $lastEventId;
-
-                yield new Event(data: 'ok');
+                $send(new Event(data: 'ok'));
             },
         );
 
         $request  = (new ServerRequest())->withHeader('Last-Event-ID', '');
         $response = $handler->handle($request);
-        // Advance the generator so its body executes up to the first yield.
+        // Invoke the stream to run the callback.
         $this->assertInstanceOf(SseResponse::class, $response);
-        $response->getEventStream()->current();
+        ($response->getStream())(fn (EventInterface $e) => null);
 
         $this->assertNull($receivedId);
     }
@@ -114,15 +110,13 @@ final class AbstractSseHandlerTest extends TestCase
 
             protected function stream(
                 ServerRequestInterface $request,
+                callable $send,
                 ?string $lastEventId,
-            ): Generator {
+            ): void {
                 if ($this->fn !== null) {
-                    /** @var Generator<mixed, EventInterface|null, mixed, mixed> $gen */
-                    $gen = ($this->fn)($request, $lastEventId);
-
-                    yield from $gen;
+                    ($this->fn)($request, $send, $lastEventId);
                 } else {
-                    yield new Event(data: 'ok');
+                    $send(new Event(data: 'ok'));
                 }
             }
         };

@@ -14,10 +14,10 @@ declare(strict_types=1);
 
 namespace WebwareTest\SSE;
 
-use Generator;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Webware\SSE\Event;
+use Webware\SSE\EventInterface;
 use Webware\SSE\SseResponse;
 
 #[CoversClass(SseResponse::class)]
@@ -25,35 +25,35 @@ final class SseResponseTest extends TestCase
 {
     public function testStatusCodeDefaultsTo200(): void
     {
-        $response = new SseResponse($this->makeGenerator());
+        $response = new SseResponse($this->makeStream());
 
         $this->assertSame(200, $response->getStatusCode());
     }
 
     public function testCustomStatusCode(): void
     {
-        $response = new SseResponse($this->makeGenerator(), 201);
+        $response = new SseResponse($this->makeStream(), 201);
 
         $this->assertSame(201, $response->getStatusCode());
     }
 
     public function testContentTypeHeaderIsTextEventStream(): void
     {
-        $response = new SseResponse($this->makeGenerator());
+        $response = new SseResponse($this->makeStream());
 
         $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
     }
 
     public function testCacheControlHeaderIsNoCache(): void
     {
-        $response = new SseResponse($this->makeGenerator());
+        $response = new SseResponse($this->makeStream());
 
         $this->assertSame('no-cache', $response->getHeaderLine('Cache-Control'));
     }
 
     public function testXAccelBufferingHeaderIsNo(): void
     {
-        $response = new SseResponse($this->makeGenerator());
+        $response = new SseResponse($this->makeStream());
 
         $this->assertSame('no', $response->getHeaderLine('X-Accel-Buffering'));
     }
@@ -61,7 +61,7 @@ final class SseResponseTest extends TestCase
     public function testCallerHeadersMergedAndTakePrecedence(): void
     {
         $response = new SseResponse(
-            $this->makeGenerator(),
+            $this->makeStream(),
             headers: ['X-Custom' => 'yes', 'Cache-Control' => 'no-store'],
         );
 
@@ -70,23 +70,26 @@ final class SseResponseTest extends TestCase
         $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
     }
 
-    public function testGetEventStreamReturnsSameGenerator(): void
+    public function testGetStreamReturnsCallable(): void
     {
-        $generator = $this->makeGenerator();
-        $response  = new SseResponse($generator);
+        $stream   = $this->makeStream();
+        $response = new SseResponse($stream);
 
-        $this->assertSame($generator, $response->getEventStream());
+        $this->assertSame($stream, $response->getStream());
     }
 
     public function testBodyIsEmptyStream(): void
     {
-        $response = new SseResponse($this->makeGenerator());
+        $response = new SseResponse($this->makeStream());
 
         $this->assertSame('', (string) $response->getBody());
     }
 
-    private function makeGenerator(): Generator
+    /** @return callable(callable(EventInterface): void): void */
+    private function makeStream(): callable
     {
-        yield new Event(data: 'test');
+        return static function (callable $send): void {
+            $send(new Event(data: 'test'));
+        };
     }
 }

@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
-use Generator;
 use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitterTrait;
 use Psr\Http\Message\ResponseInterface;
@@ -33,33 +32,13 @@ use RuntimeException;
  * When the pipeline returns a regular (non-SSE) response, emit() returns
  * false and the EmitterStack falls through to the next emitter (SapiEmitter).
  * When the pipeline returns an {@see SseResponse}, this emitter takes full
- * ownership, streams events until the generator is exhausted or the client
- * disconnects, then returns true.
- *
- * Configuration is read from the top-level array key "webware_sse":
- *
- *   'webware_sse' => [
- *       'heartbeat_interval' => 15,  // seconds between keep-alive comments
- *   ]
+ * ownership, invokes the response's stream callable, and returns true.
  */
 final class SseEmitter implements EmitterInterface
 {
     use SapiEmitterTrait;
 
-    private readonly int $heartbeatInterval;
-
-    /**
-     * @param array<string, mixed> $config Application config array (the full
-     *                                     container "config" service value).
-     */
-    public function __construct(array $config = [])
-    {
-        /** @var array<string, mixed> $sseConfig */
-        $sseConfig = $config['webware_sse'] ?? [];
-
-        $interval                = $sseConfig['heartbeat_interval'] ?? 15;
-        $this->heartbeatInterval = is_int($interval) && $interval > 0 ? $interval : 15;
-    }
+    public function __construct() {}
 
     /**
      * Emit the response.
@@ -90,7 +69,7 @@ final class SseEmitter implements EmitterInterface
         $this->emitStatusLine($response);
         $this->emitHeaders($response);
 
-        $this->streamEvents($response->getEventStream());
+        $this->streamEvents($response);
 
         return true;
     }
@@ -124,42 +103,17 @@ final class SseEmitter implements EmitterInterface
     // }
 
     /**
-     * Iterate the generator and write SSE frames to the output buffer.
-     *
-     * - A yielded {@see EventInterface} is formatted and flushed immediately.
-     * - A yielded null acts as an explicit heartbeat signal; the emitter also
-     *   sends an automatic keep-alive comment when the heartbeat interval
-     *   elapses between events.
-     *
-     * @param Generator<mixed, EventInterface|null, mixed, mixed> $stream
+     * Invokes the response's stream callable with a $send callback that writes
+     * each event to the output buffer and flushes immediately.
      */
-    private function streamEvents(Generator $stream): void
+    private function streamEvents(SseResponse $response): void
     {
-        $lastActivity = time();
+        $send = static function (EventInterface $event): void {
+            echo $event->format();
+            flush();
+        };
 
-        while ($stream->valid()) {
-            /** @var EventInterface|null $event */
-            $event = $stream->current();
-
-            if ($event instanceof EventInterface) {
-                echo $event->format();
-                flush();
-                $lastActivity = time();
-            } elseif ($event === null) {
-                // Explicit heartbeat signal or keep-alive check.
-                if ((time() - $lastActivity) >= $this->heartbeatInterval) {
-                    echo ": heartbeat\n\n";
-                    flush();
-                    $lastActivity = time();
-                }
-            }
-
-            if (connection_aborted()) {
-                break;
-            }
-
-            $stream->next();
-        }
+        ($response->getStream())($send);
     }
 
     // @throws RuntimeException

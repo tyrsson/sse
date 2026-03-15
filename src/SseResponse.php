@@ -14,17 +14,16 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
-use Generator;
 use Laminas\Diactoros\Response;
 use Laminas\Diactoros\Stream;
 
 /**
  * A PSR-7 response tailored for Server-Sent Events.
  *
- * SseResponse wraps a PHP Generator that yields {@see EventInterface}
- * instances (or null for heartbeat signals).  The body stream itself is
- * intentionally empty — the {@see SseEmitter} iterates the generator and
- * writes directly to the output buffer, bypassing the PSR-7 body entirely.
+ * SseResponse wraps a callable stream that accepts a $send callable and is
+ * responsible for pushing {@see EventInterface} instances to it.  The PSR-7
+ * body stream is intentionally empty — the {@see SseEmitter} invokes the
+ * stream callable and writes directly to the output buffer.
  *
  * Default SSE headers are merged with any caller-supplied headers:
  *   - Content-Type: text/event-stream
@@ -33,16 +32,18 @@ use Laminas\Diactoros\Stream;
  */
 final class SseResponse extends Response
 {
-    private readonly Generator $eventStream;
+    /** @var callable(callable(EventInterface): void): void */
+    private $stream;
 
     /**
-     * @param Generator $eventStream Generator that yields EventInterface|null
+     * @param callable(callable(EventInterface): void): void $stream Callable
+     *                                                               that receives a $send callable and pushes events through it.
      * @param int $status HTTP status code (default 200)
      * @param array<non-empty-string, array<string>|string> $headers Additional response headers
      */
-    public function __construct(Generator $eventStream, int $status = 200, array $headers = [])
+    public function __construct(callable $stream, int $status = 200, array $headers = [])
     {
-        $this->eventStream = $eventStream;
+        $this->stream = $stream;
 
         /** @var array<non-empty-string, array<string>|string> $sseHeaders */
         $sseHeaders = [
@@ -63,13 +64,18 @@ final class SseResponse extends Response
     }
 
     /**
-     * Returns the generator that produces SSE events.
+     * Returns the stream callable.
      *
-     * The generator yields {@see EventInterface} instances to send an event,
-     * or null to signal the emitter that a heartbeat may be due.
+     * The callable signature is:
+     *   function (callable(EventInterface): void $send): void
+     *
+     * The emitter invokes this with a $send callback that writes each event
+     * to the output buffer.
+     *
+     * @return callable(callable(EventInterface): void): void
      */
-    public function getEventStream(): Generator
+    public function getStream(): callable
     {
-        return $this->eventStream;
+        return $this->stream;
     }
 }

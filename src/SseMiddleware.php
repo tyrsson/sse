@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
-use Generator;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -38,15 +37,16 @@ use Psr\Http\Server\RequestHandlerInterface;
  * MODE 2 — Terminal factory (an $eventSourceFactory callable is supplied)
  * ---
  * Reads "Last-Event-ID" and calls the factory with
- * ($request, ?string $lastEventId) to obtain a Generator, then wraps it in
- * an {@see SseResponse} and returns it — no further handler is invoked.
- * Use this mode to attach a stream directly to a route without a dedicated
- * handler class:
+ * ($request, callable $send, ?string $lastEventId), delegating full control
+ * of event emission to the factory.  Returns an {@see SseResponse} — no
+ * further handler is invoked.  Use this mode to attach a stream directly to
+ * a route without a dedicated handler class:
  *
  *   $app->get('/events', new SseMiddleware(
- *       function (ServerRequestInterface $req, ?string $lastId): Generator {
+ *       function (ServerRequestInterface $req, callable $send, ?string $lastId): void {
  *           while (true) {
- *               yield new Event(data: date('H:i:s'));
+ *               $send(new Event(data: date('H:i:s')));
+ *               if (connection_aborted()) break;
  *               sleep(1);
  *           }
  *       }
@@ -61,9 +61,10 @@ final class SseMiddleware implements MiddlewareInterface
     public const LAST_EVENT_ID = 'SSE_LAST_EVENT_ID';
 
     /**
-     * @param callable(ServerRequestInterface, string|null): Generator<mixed, EventInterface|null, mixed, mixed>|null $eventSourceFactory
-     *                                                                                                                                    Callable that produces the event generator.  Pass null (default) to
-     *                                                                                                                                    run in preprocessor mode.
+     * @param callable(ServerRequestInterface, callable(EventInterface): void, string|null): void|null $eventSourceFactory
+     *                                                                                                                     Callable that receives the request, a $send callback, and the
+     *                                                                                                                     last event id, then pushes events via $send.  Pass null (default)
+     *                                                                                                                     to run in preprocessor mode.
      */
     public function __construct(
         private readonly mixed $eventSourceFactory = null,
@@ -77,11 +78,12 @@ final class SseMiddleware implements MiddlewareInterface
         $lastEventId = $lastEventId !== '' ? $lastEventId : null;
 
         if ($this->eventSourceFactory !== null) {
-            // Terminal factory mode: produce and stream events directly.
-            /** @var Generator<mixed, EventInterface|null, mixed, mixed> $generator */
-            $generator = ($this->eventSourceFactory)($request, $lastEventId);
+            // Terminal factory mode: wrap the factory in a stream callable.
+            $factory = $this->eventSourceFactory;
 
-            return new SseResponse($generator);
+            return new SseResponse(
+                fn (callable $send) => $factory($request, $send, $lastEventId),
+            );
         }
 
         // Preprocessor mode: enrich the request and delegate.

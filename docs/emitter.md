@@ -10,8 +10,8 @@
 When the application pipeline returns a regular PSR-7 response, `SseEmitter`
 returns `false` immediately and the `EmitterStack` falls through to the next
 emitter (`SapiEmitter`).  When the pipeline returns an `SseResponse`,
-`SseEmitter` takes full ownership: it emits headers, iterates the generator,
-flushes each event to the client, and returns `true`.
+`SseEmitter` takes full ownership: it emits headers, invokes the stream
+callable, flushes each event to the client, and returns `true`.
 
 ---
 
@@ -67,80 +67,77 @@ $stack->emit(
 
 ---
 
-## Heartbeat / keep-alive
+## Keep-alive
 
-Network proxies, load balancers, and some browsers close idle HTTP connections
-after a timeout.  `SseEmitter` addresses this by sending an SSE comment frame
-whenever the configured `heartbeat_interval` elapses without a real event:
+Network proxies and load balancers can close idle HTTP connections if no data
+is sent for a while.  Because `SseEmitter` simply invokes your stream callable
+and flushes each `EventInterface` as you call `$send()`, keeping the connection
+alive is your responsibility.
 
-```
-: heartbeat
-
-```
-
-Comment frames are part of the SSE specification and are invisible to
-JavaScript `EventSource` event listeners.  They exist solely to keep the TCP
-connection alive.
-
-### How the heartbeat is triggered
-
-The generator signals that it has no new event by yielding `null`:
+The recommended pattern is to send an SSE comment frame periodically when
+there are no real events.  Comment frames are invisible to JavaScript
+`EventSource` event listeners:
 
 ```php
-while (true) {
-    $events = $this->poll();
+use Webware\SSE\Event;
+use Webware\SSE\RawEvent;
 
-    if (empty($events)) {
-        yield null;     // <-- emitter checks the heartbeat interval here
+protected function stream(
+    ServerRequestInterface $request,
+    callable $send,
+    ?string $lastEventId,
+): void {
+    $lastPing = time();
+
+    while (true) {
+        $events = $this->poll();
+
+        foreach ($events as $e) {
+            $send(new Event(data: $e->payload, id: $e->id));
+            $lastPing = time();
+        }
+
+        // Send a comment frame every 15 seconds when idle
+        if (time() - $lastPing >= 15) {
+            echo ": heartbeat\n\n";
+            flush();
+            $lastPing = time();
+        }
+
+        if (connection_aborted()) {
+            break;
+        }
+
         sleep(1);
-        continue;
-    }
-
-    foreach ($events as $e) {
-        yield new Event(data: $e->payload, id: $e->id);
     }
 }
 ```
-
-The emitter tracks the time of the last flushed frame.  When a `null` is
-received and `time() - $lastActivity >= $heartbeatInterval`, it sends the
-comment and resets the timer.
-
-### Configuring the interval
-
-Set `heartbeat_interval` under the `webware_sse` config key:
-
-```php
-// config/autoload/sse.global.php
-return [
-    'webware_sse' => [
-        'heartbeat_interval' => 20,  // seconds (default: 15)
-    ],
-];
-```
-
-See [Configuration](configuration.md) for the full reference.
 
 ---
 
 ## Connection abort detection
 
 `SseEmitter` calls `ignore_user_abort(true)` so that PHP does not throw an
-exception when the client disconnects.  Instead, it checks
-`connection_aborted()` after each frame and breaks out of the loop cleanly.
-
-This means the generator's `finally` block — if any — **is** executed when the
-client disconnects:
+exception when the client disconnects.  Instead, your `stream()` implementation
+should check `connection_aborted()` after each event (or each poll cycle) and
+return cleanly:
 
 ```php
-protected function stream(ServerRequestInterface $request, ?string $lastId): Generator
-{
+protected function stream(
+    ServerRequestInterface $request,
+    callable $send,
+    ?string $lastEventId,
+): void {
     $this->lock->acquire();
 
     try {
         while (true) {
-            yield new Event(data: $this->poll());
-            yield null;
+            $send(new Event(data: $this->poll()));
+
+            if (connection_aborted()) {
+                break;
+            }
+
             sleep(1);
         }
     } finally {
@@ -148,6 +145,9 @@ protected function stream(ServerRequestInterface $request, ?string $lastId): Gen
     }
 }
 ```
+
+The `try/finally` block guarantees that cleanup code (releasing locks, closing
+cursors, etc.) runs regardless of how `stream()` exits.
 
 ---
 
@@ -188,19 +188,18 @@ Common causes:
 ## Constructor
 
 ```php
-public function __construct(array $config = [])
+public function __construct()
 ```
 
-`$config` is the full application config array — the same value returned by
-`$container->get('config')`.  `SseEmitterFactory` handles this automatically
-when the service is resolved from the container.
-
-Manual construction (e.g. in tests):
+`SseEmitter` takes no constructor arguments.  Resolve it from the container or
+construct it directly:
 
 ```php
-$emitter = new SseEmitter([
-    'webware_sse' => ['heartbeat_interval' => 30],
-]);
+// From the container (recommended):
+$emitter = $container->get(\Webware\SSE\SseEmitter::class);
+
+// Manual construction (e.g. in tests):
+$emitter = new SseEmitter();
 ```
 
 ---

@@ -6,11 +6,11 @@
 base class that makes it easy to build SSE endpoints as dedicated handler
 classes.
 
-Extend it, implement the `stream()` method as a PHP generator, and return it
-from a route.  The base class takes care of:
+Extend it, implement the `stream()` method, and return it from a route.  The
+base class takes care of:
 
 - Extracting the `Last-Event-ID` request header (reconnection support)
-- Wrapping your generator in an `SseResponse`
+- Wrapping your stream callable in an `SseResponse`
 - Normalising an empty `Last-Event-ID` value to `null`
 
 ---
@@ -20,7 +20,6 @@ from a route.  The base class takes care of:
 ```php
 namespace Webware\SSE;
 
-use Generator;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -31,8 +30,9 @@ abstract class AbstractSseHandler implements RequestHandlerInterface
 
     abstract protected function stream(
         ServerRequestInterface $request,
+        callable $send,
         ?string $lastEventId,
-    ): Generator;
+    ): void;
 }
 ```
 
@@ -41,11 +41,12 @@ abstract class AbstractSseHandler implements RequestHandlerInterface
 ## Implementing a handler
 
 Create a final class that extends `AbstractSseHandler` and implement the
-`stream()` method.  The method **must** be a PHP generator (contain at least
-one `yield`).
+`stream()` method.  Call `$send` with each `EventInterface` instance to push
+it to the connected client.  Return (or let execution fall off the end) to
+close the stream.  Check `connection_aborted()` inside loops to detect a
+disconnected client.
 
 ```php
-use Generator;
 use Psr\Http\Message\ServerRequestInterface;
 use Webware\SSE\AbstractSseHandler;
 use Webware\SSE\Event;
@@ -58,8 +59,9 @@ final class LiveScoreHandler extends AbstractSseHandler
 
     protected function stream(
         ServerRequestInterface $request,
+        callable $send,
         ?string $lastEventId,
-    ): Generator {
+    ): void {
         $cursor = $lastEventId ?? '0';
 
         while (true) {
@@ -67,15 +69,15 @@ final class LiveScoreHandler extends AbstractSseHandler
 
             foreach ($updates as $update) {
                 $cursor = $update->id;
-                yield new Event(
+                $send(new Event(
                     data:  json_encode($update, JSON_THROW_ON_ERROR),
                     event: 'score-update',
                     id:    $cursor,
-                );
+                ));
             }
 
-            if (empty($updates)) {
-                yield null;   // idle — let the emitter send a heartbeat if needed
+            if (connection_aborted()) {
+                break;
             }
 
             sleep(1);
@@ -83,8 +85,6 @@ final class LiveScoreHandler extends AbstractSseHandler
     }
 }
 ```
-
----
 
 ## Reconnection and `Last-Event-ID`
 
@@ -109,8 +109,11 @@ The normalised value is forwarded to your `stream()` implementation as
 `$lastEventId`.  **Use it as a cursor** into your data source:
 
 ```php
-protected function stream(ServerRequestInterface $request, ?string $lastEventId): Generator
-{
+protected function stream(
+    ServerRequestInterface $request,
+    callable $send,
+    ?string $lastEventId,
+): void {
     // On first connect $lastEventId is null — start from the beginning.
     // On reconnect $lastEventId holds the id the client last saw.
     $cursor = $lastEventId ?? '0';
@@ -118,10 +121,13 @@ protected function stream(ServerRequestInterface $request, ?string $lastEventId)
     while (true) {
         foreach ($this->repo->getEventsSince($cursor) as $event) {
             $cursor = $event->id;
-            yield new Event(data: $event->payload, id: $cursor);
+            $send(new Event(data: $event->payload, id: $cursor));
         }
 
-        yield null;
+        if (connection_aborted()) {
+            break;
+        }
+
         sleep(1);
     }
 }
@@ -174,8 +180,11 @@ read route parameters, query string values, or request attributes set by
 upstream middleware:
 
 ```php
-protected function stream(ServerRequestInterface $request, ?string $lastEventId): Generator
-{
+protected function stream(
+    ServerRequestInterface $request,
+    callable $send,
+    ?string $lastEventId,
+): void {
     // Read a route parameter (e.g. /events/match/{matchId})
     $matchId = $request->getAttribute('matchId');
 
@@ -187,8 +196,12 @@ protected function stream(ServerRequestInterface $request, ?string $lastEventId)
     $fromId = $request->getAttribute(\Webware\SSE\SseMiddleware::LAST_EVENT_ID);
 
     while (true) {
-        yield new Event(data: $this->query($matchId, $filter, $fromId));
-        yield null;
+        $send(new Event(data: $this->query($matchId, $filter, $fromId)));
+
+        if (connection_aborted()) {
+            break;
+        }
+
         sleep(1);
     }
 }
@@ -198,51 +211,81 @@ protected function stream(ServerRequestInterface $request, ?string $lastEventId)
 
 ## Ending the stream
 
-The stream ends when the generator returns (either by reaching its end or via
-an explicit `return` statement).  `SseEmitter` stops iterating and returns
-`true`.  The HTTP connection is then closed normally.
+Returning from `stream()` closes the PHP connection cleanly.  However, the
+browser's `EventSource` will automatically reconnect after the `retry` timeout
+— it always does unless client JavaScript explicitly calls `source.close()`.
+
+To tell the client not to reconnect, send a `CloseEvent` before returning.  It
+transmits an SSE block with the named event `stream-close`.  Add a single
+listener in your client JavaScript that calls `source.close()` when it receives
+that event:
+
+```js
+// Add this once when you open the connection
+source.addEventListener('stream-close', () => source.close());
+```
 
 ```php
-protected function stream(ServerRequestInterface $request, ?string $lastEventId): Generator
-{
+use Webware\SSE\CloseEvent;
+use Webware\SSE\Event;
+
+protected function stream(
+    ServerRequestInterface $request,
+    callable $send,
+    ?string $lastEventId,
+): void {
     // Finite stream: send a fixed number of events then close
     for ($i = 1; $i <= 10; $i++) {
-        yield new Event(data: "step $i of 10", id: (string) $i, event: 'progress');
+        $send(new Event(data: "step $i of 10", id: (string) $i, event: 'progress'));
         sleep(1);
     }
 
-    yield new Event(data: 'done', event: 'complete');
-    // Generator returns here — connection closes cleanly
+    $send(new Event(data: 'done', event: 'complete'));
+
+    // Signal the client to close and stop reconnecting
+    $send(new CloseEvent());
+    // stream() returns here — PHP closes the connection
 }
 ```
+
+If the stream is infinite (e.g. a live feed) and ends only because the client
+disconnected, there is no need to send `CloseEvent` — `connection_aborted()`
+will be `true` and there is no client to notify.
 
 ---
 
 ## Error handling inside the stream
 
-Unhandled exceptions that bubble out of the generator will propagate into
+Unhandled exceptions that bubble out of `stream()` will propagate into
 `SseEmitter::streamEvents()` and ultimately into the PHP error handler.
 Because headers have already been sent at that point, a regular error response
 cannot be issued.
 
-Recommended approach: catch exceptions inside the generator and yield an error
+Recommended approach: catch exceptions inside `stream()` and send an error
 event, then return:
 
 ```php
-protected function stream(ServerRequestInterface $request, ?string $lastEventId): Generator
-{
+protected function stream(
+    ServerRequestInterface $request,
+    callable $send,
+    ?string $lastEventId,
+): void {
     try {
         while (true) {
-            yield new Event(data: $this->fetch(), id: $this->cursor);
-            yield null;
+            $send(new Event(data: $this->fetch(), id: $this->cursor));
+
+            if (connection_aborted()) {
+                break;
+            }
+
             sleep(1);
         }
     } catch (\Throwable $e) {
-        yield new Event(
+        $send(new Event(
             data:  json_encode(['error' => $e->getMessage()]),
             event: 'stream-error',
-        );
-        // Generator returns — stream ends gracefully
+        ));
+        // stream() returns — stream ends gracefully
     }
 }
 ```

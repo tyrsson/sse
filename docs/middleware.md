@@ -8,7 +8,7 @@ one of two modes depending on how it is constructed.
 | Mode | Constructor | Role |
 | --- | --- | --- |
 | **Preprocessor** | `new SseMiddleware()` — no factory | Reads `Last-Event-ID`, injects it as a request attribute, and delegates to the next handler |
-| **Terminal factory** | `new SseMiddleware($callable)` — callable provided | Reads `Last-Event-ID`, calls the factory to produce a generator, and returns an `SseResponse` directly |
+| **Terminal factory** | `new SseMiddleware($callable)` — callable provided | Reads `Last-Event-ID`, wraps the factory in a stream callable, and returns an `SseResponse` directly |
 
 ---
 
@@ -54,8 +54,11 @@ argument), the container-resolved instance is always in preprocessor mode.
 ```php
 use Webware\SSE\SseMiddleware;
 
-protected function stream(ServerRequestInterface $request, ?string $lastEventId): Generator
-{
+protected function stream(
+    ServerRequestInterface $request,
+    callable $send,
+    ?string $lastEventId,
+): void {
     // Option A: use the $lastEventId parameter — AbstractSseHandler sets this
     //           from the request header automatically
     $cursor = $lastEventId ?? '0';
@@ -79,8 +82,8 @@ terminal request handler for that route.
 ### What it does
 
 1. Reads the `Last-Event-ID` request header (normalised to `null` if empty).
-2. Calls the provided callable with `($request, ?string $lastEventId)`.
-3. Wraps the returned `Generator` in an `SseResponse` and returns it.
+2. Wraps the provided callable in an `SseResponse` stream; the callable receives `($request, callable $send, ?string $lastEventId)`.
+3. Returns the `SseResponse` immediately.
 4. The next `$handler` in the pipeline is **never called**.
 
 ### Usage
@@ -89,17 +92,18 @@ Construct `SseMiddleware` with a callable directly in your route config:
 
 ```php
 // config/routes.php
-use Generator;
 use Psr\Http\Message\ServerRequestInterface;
 use Webware\SSE\Event;
 use Webware\SSE\SseMiddleware;
 
 $app->get('/events/clock', new SseMiddleware(
-    static function (ServerRequestInterface $request, ?string $lastEventId): Generator {
+    static function (ServerRequestInterface $request, callable $send, ?string $lastEventId): void {
         while (true) {
-            yield new Event(data: date('H:i:s'), event: 'tick');
+            $send(new Event(data: date('H:i:s'), event: 'tick'));
+            if (connection_aborted()) {
+                break;
+            }
             sleep(1);
-            yield null;
         }
     }
 ));
@@ -115,14 +119,16 @@ closes over container-resolved dependencies:
 $notifier = $container->get(NotificationService::class);
 
 $app->get('/events/notifications', new SseMiddleware(
-    static function (ServerRequestInterface $req, ?string $lastId) use ($notifier): Generator {
+    static function (ServerRequestInterface $req, callable $send, ?string $lastId) use ($notifier): void {
         $cursor = $lastId ?? '0';
         while (true) {
             foreach ($notifier->getNewSince($cursor) as $n) {
                 $cursor = $n->id;
-                yield new Event(data: $n->toJson(), id: $cursor, event: 'notification');
+                $send(new Event(data: $n->toJson(), id: $cursor, event: 'notification'));
             }
-            yield null;
+            if (connection_aborted()) {
+                break;
+            }
             sleep(2);
         }
     }
@@ -138,15 +144,17 @@ final class NotificationStream
         private readonly NotificationService $notifier,
     ) {}
 
-    public function __invoke(ServerRequestInterface $request, ?string $lastId): Generator
+    public function __invoke(ServerRequestInterface $request, callable $send, ?string $lastId): void
     {
         $cursor = $lastId ?? '0';
         while (true) {
             foreach ($this->notifier->getNewSince($cursor) as $n) {
                 $cursor = $n->id;
-                yield new Event(data: $n->toJson(), id: $cursor, event: 'notification');
+                $send(new Event(data: $n->toJson(), id: $cursor, event: 'notification'));
             }
-            yield null;
+            if (connection_aborted()) {
+                break;
+            }
             sleep(2);
         }
     }

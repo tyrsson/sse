@@ -36,8 +36,7 @@ use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
  *
  *   return [
  *       'webware_sse' => [
- *           'heartbeat_interval' => 30, // seconds
- *           'retry'              => 5000, // ms, for use in Event objects
+ *           'retry' => 5000, // ms, for use in Event objects
  *       ],
  *   ];
  */
@@ -80,9 +79,6 @@ final class ConfigProvider
     /**
      * Returns the default SSE configuration values.
      *
-     * heartbeat_interval: seconds between keep-alive comment frames when the
-     *     generator has not yielded a real event.
-     *
      * retry: milliseconds that the browser's EventSource should wait before
      *     reconnecting after a dropped connection.  This value is informational
      *     for application code; use it when constructing Event objects:
@@ -93,8 +89,7 @@ final class ConfigProvider
     public function getSseConfig(): array
     {
         return [
-            'heartbeat_interval' => 15,
-            'retry'              => 3000,
+            'retry' => 3000,
         ];
     }
 }

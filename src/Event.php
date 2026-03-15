@@ -17,12 +17,11 @@ namespace Webware\SSE;
 /**
  * Immutable value object representing a single Server-Sent Event.
  *
- * Usage from a PSR-15 handler generator:
+ * Usage from a stream callable:
  *
- *   yield new Event(data: 'hello');
- *   yield new Event(data: 'tick', event: 'clock', id: '42', retry: 5000);
- *   yield new Event(data: "line one\nline two");  // multi-line data
- *   yield null;  // heartbeat signal to the emitter
+ *   $send(new Event(data: 'hello'));
+ *   $send(new Event(data: 'tick', event: 'clock', id: '42', retry: 5000));
+ *   $send(new Event(data: "line one\nline two"));  // multi-line data
  */
 final class Event implements EventInterface
 {
