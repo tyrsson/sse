@@ -19,8 +19,14 @@ use Laminas\HttpHandlerRunner\Emitter\EmitterStack;
 use Psr\Container\ContainerInterface;
 use RuntimeException;
 
-final class EmitterStackDelegatorFactory
+/**
+ * @internal
+ */
+final readonly class EmitterStackDelegatorFactory
 {
+    /**
+     * @phpstan-param null|array<mixed> $options
+     */
     public function __invoke(
         ContainerInterface $container,
         string $name,

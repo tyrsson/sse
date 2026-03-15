@@ -60,7 +60,7 @@ final class ConfigProvider
      * The "factories" key is understood by laminas-servicemanager and by any
      * other PSR-11 container that follows the standard Mezzio config shape.
      *
-     * @return array<string, array<class-string, class-string>>
+     * @return array{'delegators': array<string, array<int, class-string>>, 'factories': array<string, class-string>}
      */
     public function getDependencies(): array
     {
