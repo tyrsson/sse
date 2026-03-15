@@ -42,7 +42,6 @@ final class SseEmitterTest extends TestCase
         // Access private property via reflection to verify the default.
         $ref      = new ReflectionClass($emitter);
         $property = $ref->getProperty('heartbeatInterval');
-        $property->setAccessible(true);
 
         $this->assertSame(15, $property->getValue($emitter));
     }
@@ -53,7 +52,6 @@ final class SseEmitterTest extends TestCase
 
         $ref      = new ReflectionClass($emitter);
         $property = $ref->getProperty('heartbeatInterval');
-        $property->setAccessible(true);
 
         $this->assertSame(30, $property->getValue($emitter));
     }
@@ -64,7 +62,6 @@ final class SseEmitterTest extends TestCase
 
         $ref      = new ReflectionClass($emitter);
         $property = $ref->getProperty('heartbeatInterval');
-        $property->setAccessible(true);
 
         $this->assertSame(15, $property->getValue($emitter));
     }
@@ -100,7 +97,6 @@ final class SseEmitterTest extends TestCase
 
         $ref    = new ReflectionClass($emitter);
         $method = $ref->getMethod('streamEvents');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke($emitter, $response->getEventStream());
@@ -124,7 +120,6 @@ final class SseEmitterTest extends TestCase
 
         $ref    = new ReflectionClass($emitter);
         $method = $ref->getMethod('streamEvents');
-        $method->setAccessible(true);
 
         ob_start();
         $method->invoke($emitter, $response->getEventStream());
