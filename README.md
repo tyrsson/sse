@@ -78,9 +78,25 @@ $app->get('/events/time', TimeHandler::class);
 
 ### 6. Subscribe in the browser
 
-```javascript
-const source = new EventSource('/events/time');
-source.addEventListener('tick', e => console.log(e.data));
+```html
+<!-- ESM (modern browsers / bundlers) -->
+<script type="module">
+  import { SseClient } from './js/sse-client.js';
+
+  const client = new SseClient('/events/time', {
+    onOpen:  () => console.log('connected'),
+    onError: (err) => console.warn('error', err),
+  });
+
+  client.on('tick', (time) => console.log('server time:', time));
+</script>
+
+<!-- Or via the IIFE global build -->
+<script src="js/sse-client.iife.js"></script>
+<script>
+  const client = new SseClient('/events/time');
+  client.on('tick', (time) => console.log('server time:', time));
+</script>
 ```
 
 ---
@@ -97,6 +113,7 @@ source.addEventListener('tick', e => console.log(e.data));
 | [AbstractSseHandler](docs/handler.md) | PSR-15 handler base class, `Last-Event-ID`, reconnection |
 | [SseMiddleware](docs/middleware.md) | Preprocessor mode, terminal factory mode |
 | [Mezzio Integration](docs/mezzio-integration.md) | Full end-to-end guide for Mezzio applications |
+| [JavaScript Client](docs/js-client.md) | Browser / Node SSE client with reconnect, typed events, and polyfill |
 
 ---
 
