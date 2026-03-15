@@ -14,11 +14,11 @@ declare(strict_types=1);
 
 namespace WebwareTest\SSE;
 
-use Laminas\Diactoros\Response\JsonResponse;
-use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
+use Fiber;
+use Laminas\Diactoros\Response\TextResponse;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 use Webware\SSE\Event;
 use Webware\SSE\SseEmitter;
 use Webware\SSE\SseResponse;
@@ -26,68 +26,91 @@ use Webware\SSE\SseResponse;
 #[CoversClass(SseEmitter::class)]
 final class SseEmitterTest extends TestCase
 {
-    public function testReturnsFalseForNonSseResponse(): void
-    {
-        $emitter  = new SseEmitter();
-        $response = new JsonResponse(['ok' => true]);
+    private SseEmitter $emitter;
 
-        $this->assertFalse($emitter->emit($response));
+    protected function setUp(): void
+    {
+        $this->emitter = new SseEmitter();
     }
 
-    public function testEmitterImplementsEmitterInterface(): void
+    #[Test]
+    public function emitReturnsFalseForNonSseResponse(): void
     {
-        $emitter = new SseEmitter();
+        $response = new TextResponse('hello');
 
-        // Verify via interface list to avoid PHPStan's "always true" narrowing warning.
-        $this->assertContains(
-            EmitterInterface::class,
-            array_keys(class_implements($emitter) ?: []),
-        );
+        self::assertFalse($this->emitter->emit($response));
+    }
+
+    #[Test]
+    public function emitReturnsTrueForSseResponse(): void
+    {
+        $fiber = new Fiber(static function (): void {
+            // Fiber terminates immediately without yielding.
+        });
+
+        $response = new SseResponse($fiber);
+
+        ob_start();
+        $result = $this->emitter->emit($response);
+        ob_end_clean();
+
+        self::assertTrue($result);
+    }
+
+    #[Test]
+    public function emitWritesEventInWireFormat(): void
+    {
+        $fiber = new Fiber(static function (): void {
+            Fiber::suspend(new Event(data: '<p>Hello</p>', event: 'msg'));
+        });
+
+        $response = new SseResponse($fiber);
+        $output   = $this->captureEmit($response);
+
+        self::assertSame("event: msg\ndata: <p>Hello</p>\n\n", $output);
+    }
+
+    #[Test]
+    public function emitWritesMultipleEvents(): void
+    {
+        $fiber = new Fiber(static function (): void {
+            Fiber::suspend(new Event(data: 'first', event: 'a'));
+            Fiber::suspend(new Event(data: 'second', event: 'b'));
+        });
+
+        $response = new SseResponse($fiber);
+        $output   = $this->captureEmit($response);
+
+        self::assertStringContainsString("event: a\ndata: first\n\n", $output);
+        self::assertStringContainsString("event: b\ndata: second\n\n", $output);
+    }
+
+    #[Test]
+    public function emitIgnoresNonEventFiberYields(): void
+    {
+        $fiber = new Fiber(static function (): void {
+            Fiber::suspend(null); // heartbeat / non-event suspend
+            Fiber::suspend(new Event(data: 'hello'));
+        });
+
+        $response = new SseResponse($fiber);
+        $output   = $this->captureEmit($response);
+
+        self::assertSame("data: hello\n\n", $output);
     }
 
     /**
-     * Verify that streamEvents flushes the formatted event to output.
+     * Run emit() while capturing stdout.
+     *
+     * SseEmitter flushes the ob stack internally; to avoid breaking PHPUnit's
+     * own output buffer we wrap the whole call in ob_start with PHP_OUTPUT_HANDLER_CLEANABLE
+     * and rely on ob_get_clean() to retrieve what was echo'd.
      */
-    public function testEmitsCapturedOutput(): void
+    private function captureEmit(SseResponse $response): string
     {
-        $emitter = new SseEmitter();
-
-        $response = new SseResponse(
-            static function (callable $send): void {
-                $send(new Event(data: 'hello', id: '1'));
-            },
-        );
-
-        $ref    = new ReflectionClass($emitter);
-        $method = $ref->getMethod('streamEvents');
-
         ob_start();
-        $method->invoke($emitter, $response);
-        $output = ob_get_clean();
+        $this->emitter->emit($response);
 
-        $this->assertNotFalse($output);
-        $this->assertStringContainsString("data: hello\n", (string) $output);
-        $this->assertStringContainsString("id: 1\n", (string) $output);
-    }
-
-    public function testStreamCallableIsInvoked(): void
-    {
-        $emitter = new SseEmitter();
-        $invoked = false;
-
-        $response = new SseResponse(
-            static function (callable $send) use (&$invoked): void {
-                $invoked = true;
-            },
-        );
-
-        $ref    = new ReflectionClass($emitter);
-        $method = $ref->getMethod('streamEvents');
-
-        ob_start();
-        $method->invoke($emitter, $response);
-        ob_get_clean();
-
-        $this->assertTrue($invoked);
+        return (string) ob_get_clean();
     }
 }

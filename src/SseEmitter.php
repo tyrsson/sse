@@ -14,39 +14,29 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
+use JsonException;
 use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
-use Laminas\HttpHandlerRunner\Emitter\SapiEmitterTrait;
 use Psr\Http\Message\ResponseInterface;
-use RuntimeException;
 
-/**
- * SSE-aware emitter that integrates with the laminas-httphandlerrunner
- * {@see EmitterInterface} and {@see EmitterStack}.
- *
- * Place this emitter *before* the standard SapiEmitter on the stack:
- *
- *   $stack = new EmitterStack();
- *   $stack->push(new SapiEmitter());
- *   $stack->push(new SseEmitter($config));
- *
- * When the pipeline returns a regular (non-SSE) response, emit() returns
- * false and the EmitterStack falls through to the next emitter (SapiEmitter).
- * When the pipeline returns an {@see SseResponse}, this emitter takes full
- * ownership, invokes the response's stream callable, and returns true.
- */
+use function connection_aborted;
+use function flush;
+use function header;
+use function ob_end_flush;
+use function ob_get_level;
+use function sprintf;
+
 final class SseEmitter implements EmitterInterface
 {
-    use SapiEmitterTrait;
-
-    public function __construct() {}
-
     /**
      * Emit the response.
      *
-     * Returns false immediately for any response that is not an SseResponse,
-     * allowing the EmitterStack to delegate to the next emitter.
+     * Returns false for any non-SseResponse so that the next emitter in the
+     * EmitterStack (e.g. SapiEmitter) can handle it.
      *
-     * @throws RuntimeException When headers have already been sent.
+     * For SseResponse, the embedded Fiber is started and resumed until it
+     * terminates, with each yielded Event written to stdout in SSE wire format.
+     *
+     * @throws JsonException
      */
     public function emit(ResponseInterface $response): bool
     {
@@ -54,77 +44,60 @@ final class SseEmitter implements EmitterInterface
             return false;
         }
 
-        $this->assertNoPreviousOutput();
-
-        // Allow the script to run indefinitely and do not abort silently when
-        // the client disconnects (we check connection_aborted() ourselves).
-        set_time_limit(0);
-        ignore_user_abort(true);
-
-        // Drain all active output buffers so nothing is held in memory.
+        // Flush any output buffers without closing them, so content reaches the
+        // client immediately. We intentionally avoid ob_end_flush() here to
+        // avoid closing buffers owned by the calling environment (e.g. web
+        // servers or test harnesses).
         while (ob_get_level() > 0) {
-            ob_end_flush();
+            if (ob_get_length() !== false) {
+                ob_flush();
+            }
+
+            break;
         }
 
-        $this->emitStatusLine($response);
-        $this->emitHeaders($response);
+        // Send SSE headers.
+        foreach ($response->getHeaders() as $name => $values) {
+            foreach ($values as $value) {
+                header(sprintf('%s: %s', $name, $value), false);
+            }
+        }
 
-        $this->streamEvents($response);
+        header(
+            sprintf(
+                'HTTP/%s %d%s',
+                $response->getProtocolVersion(),
+                $response->getStatusCode(),
+                $response->getReasonPhrase() !== '' ? ' ' . $response->getReasonPhrase() : ''
+            ),
+            true,
+            $response->getStatusCode(),
+        );
+
+        $fiber = $response->getFiber();
+
+        // Start the fiber; it runs until it first suspends with an Event (or terminates).
+        $event = $fiber->start();
+
+        while (! $fiber->isTerminated()) {
+            if ($event instanceof Event) {
+                echo $event->toWireFormat();
+                flush();
+            }
+
+            if (connection_aborted()) {
+                break;
+            }
+
+            $event = $fiber->resume();
+        }
+
+        // Emit the final value if the fiber returned without terminating via break.
+        if ($fiber->isTerminated() && $event instanceof Event) {
+            echo $event->toWireFormat();
+            flush();
+        }
 
         return true;
     }
-
-    // -------------------------------------------------------------------------
-
-    // private function emitStatusLine(ResponseInterface $response): void
-    // {
-    //     $reasonPhrase = $response->getReasonPhrase();
-    //     $statusCode   = $response->getStatusCode();
-    //     $protocolVersion = $response->getProtocolVersion();
-
-    //     header(sprintf(
-    //         'HTTP/%s %d%s',
-    //         $protocolVersion,
-    //         $statusCode,
-    //         ($reasonPhrase !== '' ? ' ' . $reasonPhrase : ''),
-    //     ), true, $statusCode);
-    // }
-
-    // private function emitHeaders(ResponseInterface $response): void
-    // {
-    //     foreach ($response->getHeaders() as $name => $values) {
-    //         $name  = (string) $name;
-    //         $first = true;
-    //         foreach ($values as $value) {
-    //             header($name . ': ' . $value, $first);
-    //             $first = false;
-    //         }
-    //     }
-    // }
-
-    /**
-     * Invokes the response's stream callable with a $send callback that writes
-     * each event to the output buffer and flushes immediately.
-     */
-    private function streamEvents(SseResponse $response): void
-    {
-        $send = static function (EventInterface $event): void {
-            echo $event->format();
-            flush();
-        };
-
-        ($response->getStream())($send);
-    }
-
-    // @throws RuntimeException
-    // private function assertNoPreviousOutput(): void
-    // {
-    //     if (headers_sent($file, $line)) {
-    //         throw new RuntimeException(sprintf(
-    //             'Unable to emit SSE response: headers already sent in %s on line %d.',
-    //             $file,
-    //             $line,
-    //         ));
-    //     }
-    // }
 }

@@ -14,111 +14,108 @@ declare(strict_types=1);
 
 namespace WebwareTest\SSE;
 
-use Closure;
 use Laminas\Diactoros\ServerRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ServerRequestInterface;
 use Webware\SSE\AbstractSseHandler;
 use Webware\SSE\Event;
-use Webware\SSE\EventInterface;
 use Webware\SSE\SseResponse;
 
 #[CoversClass(AbstractSseHandler::class)]
 final class AbstractSseHandlerTest extends TestCase
 {
-    public function testHandleReturnsSseResponse(): void
+    #[Test]
+    public function handleReturnsSseResponse(): void
     {
-        $handler  = $this->makeConcreteHandler();
-        $request  = new ServerRequest();
-        $response = $handler->handle($request);
-
-        $this->assertInstanceOf(SseResponse::class, $response);
-    }
-
-    public function testLastEventIdParsedFromHeader(): void
-    {
-        $receivedId = null;
-
-        $handler = $this->makeConcreteHandler(
-            function (ServerRequestInterface $req, callable $send, ?string $lastEventId) use (&$receivedId): void {
-                $receivedId = $lastEventId;
-                $send(new Event(data: 'ok'));
-            },
-        );
-
-        $request  = (new ServerRequest())->withHeader('Last-Event-ID', '99');
-        $response = $handler->handle($request);
-        // Invoke the stream to run the callback.
-        $this->assertInstanceOf(SseResponse::class, $response);
-        ($response->getStream())(fn (EventInterface $e) => null);
-
-        $this->assertSame('99', $receivedId);
-    }
-
-    public function testLastEventIdIsNullWhenHeaderAbsent(): void
-    {
-        $receivedId = 'NOT_NULL';
-
-        $handler = $this->makeConcreteHandler(
-            function (ServerRequestInterface $req, callable $send, ?string $lastEventId) use (&$receivedId): void {
-                $receivedId = $lastEventId;
-                $send(new Event(data: 'ok'));
-            },
-        );
-
-        $response = $handler->handle(new ServerRequest());
-        // Invoke the stream to run the callback.
-        $this->assertInstanceOf(SseResponse::class, $response);
-        ($response->getStream())(fn (EventInterface $e) => null);
-
-        $this->assertNull($receivedId);
-    }
-
-    public function testEmptyLastEventIdHeaderNormalisedToNull(): void
-    {
-        $receivedId = 'NOT_NULL';
-
-        $handler = $this->makeConcreteHandler(
-            function (ServerRequestInterface $req, callable $send, ?string $lastEventId) use (&$receivedId): void {
-                $receivedId = $lastEventId;
-                $send(new Event(data: 'ok'));
-            },
-        );
-
-        $request  = (new ServerRequest())->withHeader('Last-Event-ID', '');
-        $response = $handler->handle($request);
-        // Invoke the stream to run the callback.
-        $this->assertInstanceOf(SseResponse::class, $response);
-        ($response->getStream())(fn (EventInterface $e) => null);
-
-        $this->assertNull($receivedId);
-    }
-
-    public function testResponseContainsEventStreamContentType(): void
-    {
-        $handler  = $this->makeConcreteHandler();
-        $response = $handler->handle(new ServerRequest());
-
-        $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
-    }
-
-    private function makeConcreteHandler(?Closure $streamFn = null): AbstractSseHandler
-    {
-        return new class($streamFn) extends AbstractSseHandler {
-            public function __construct(private readonly ?Closure $fn) {}
-
+        $handler = new class() extends AbstractSseHandler {
             protected function stream(
                 ServerRequestInterface $request,
                 callable $send,
                 ?string $lastEventId,
             ): void {
-                if ($this->fn !== null) {
-                    ($this->fn)($request, $send, $lastEventId);
-                } else {
-                    $send(new Event(data: 'ok'));
-                }
+                // no-op
             }
         };
+
+        $request  = new ServerRequest();
+        $response = $handler->handle($request);
+
+        self::assertInstanceOf(SseResponse::class, $response);
+    }
+
+    #[Test]
+    public function handleExtractsLastEventIdFromHeader(): void
+    {
+        $spy     = new LastEventIdSpy();
+        $handler = new LastEventIdCapturingHandler($spy);
+
+        $request  = (new ServerRequest())->withHeader('Last-Event-ID', '99');
+        $response = $handler->handle($request);
+
+        self::assertInstanceOf(SseResponse::class, $response);
+        $response->getFiber()->start();
+
+        self::assertSame('99', $spy->lastEventId);
+    }
+
+    #[Test]
+    public function handlePassesNullLastEventIdWhenHeaderAbsent(): void
+    {
+        $spy              = new LastEventIdSpy();
+        $spy->lastEventId = 'initial';
+        $handler          = new LastEventIdCapturingHandler($spy);
+
+        $request  = new ServerRequest();
+        $response = $handler->handle($request);
+
+        self::assertInstanceOf(SseResponse::class, $response);
+        $response->getFiber()->start();
+
+        self::assertNull($spy->lastEventId);
+    }
+
+    #[Test]
+    public function sendCallableSuspendsTheFiberWithEvent(): void
+    {
+        $handler = new class() extends AbstractSseHandler {
+            protected function stream(
+                ServerRequestInterface $request,
+                callable $send,
+                ?string $lastEventId,
+            ): void {
+                $send(new Event(data: 'tick', event: 'timer'));
+            }
+        };
+
+        $request  = new ServerRequest();
+        $response = $handler->handle($request);
+
+        self::assertInstanceOf(SseResponse::class, $response);
+
+        $yielded = $response->getFiber()->start();
+
+        self::assertInstanceOf(Event::class, $yielded);
+        self::assertSame('tick', $yielded->data);
+        self::assertSame('timer', $yielded->event);
+    }
+}
+
+final class LastEventIdSpy
+{
+    public ?string $lastEventId = null;
+}
+
+final class LastEventIdCapturingHandler extends AbstractSseHandler
+{
+    public function __construct(private readonly LastEventIdSpy $spy) {}
+
+    protected function stream(
+        ServerRequestInterface $request,
+        callable $send,
+        ?string $lastEventId,
+    ): void {
+        $this->spy->lastEventId = $lastEventId;
     }
 }

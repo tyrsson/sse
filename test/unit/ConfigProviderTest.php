@@ -14,13 +14,14 @@ declare(strict_types=1);
 
 namespace WebwareTest\SSE;
 
+use Laminas\HttpHandlerRunner\Emitter\EmitterStack;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Webware\SSE\ConfigProvider;
 use Webware\SSE\SseEmitter;
-use Webware\SSE\SseEmitterFactory;
+use Webware\SSE\SseEmitterDelegatorFactory;
 use Webware\SSE\SseMiddleware;
-use Webware\SSE\SseMiddlewareFactory;
 
 #[CoversClass(ConfigProvider::class)]
 final class ConfigProviderTest extends TestCase
@@ -32,49 +33,29 @@ final class ConfigProviderTest extends TestCase
         $this->provider = new ConfigProvider();
     }
 
-    public function testInvokeReturnsDependenciesKey(): void
+    #[Test]
+    public function invokeReturnsDependenciesKey(): void
     {
         $config = ($this->provider)();
 
-        $this->assertArrayHasKey('dependencies', $config);
+        self::assertArrayHasKey('dependencies', $config);
     }
 
-    public function testInvokeReturnsWestwareSseKey(): void
-    {
-        $config = ($this->provider)();
-
-        $this->assertArrayHasKey('webware_sse', $config);
-    }
-
-    public function testDependenciesContainsFactoriesKey(): void
+    #[Test]
+    public function dependenciesRegistersInvokableServices(): void
     {
         $deps = $this->provider->getDependencies();
 
-        $this->assertArrayHasKey('factories', $deps);
+        self::assertArrayHasKey(SseEmitter::class, $deps['invokables']);
+        self::assertArrayHasKey(SseMiddleware::class, $deps['invokables']);
     }
 
-    public function testSseEmitterFactoryIsRegistered(): void
+    #[Test]
+    public function dependenciesRegistersEmitterStackDelegator(): void
     {
-        $factories = $this->provider->getDependencies()['factories'];
+        $deps = $this->provider->getDependencies();
 
-        $this->assertArrayHasKey(SseEmitter::class, $factories);
-        $this->assertSame(SseEmitterFactory::class, $factories[SseEmitter::class]);
-    }
-
-    public function testSseMiddlewareFactoryIsRegistered(): void
-    {
-        $factories = $this->provider->getDependencies()['factories'];
-
-        $this->assertArrayHasKey(SseMiddleware::class, $factories);
-        $this->assertSame(SseMiddlewareFactory::class, $factories[SseMiddleware::class]);
-    }
-
-    public function testSseConfigContainsRetry(): void
-    {
-        $sseConfig = $this->provider->getSseConfig();
-
-        $this->assertArrayHasKey('retry', $sseConfig);
-        $this->assertIsInt($sseConfig['retry']);
-        $this->assertGreaterThan(0, $sseConfig['retry']);
+        self::assertArrayHasKey(EmitterStack::class, $deps['delegators']);
+        self::assertContains(SseEmitterDelegatorFactory::class, $deps['delegators'][EmitterStack::class]);
     }
 }

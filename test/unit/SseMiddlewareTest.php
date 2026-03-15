@@ -17,153 +17,65 @@ namespace WebwareTest\SSE;
 use Laminas\Diactoros\Response\TextResponse;
 use Laminas\Diactoros\ServerRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Webware\SSE\Event;
-use Webware\SSE\EventInterface;
+use stdClass;
 use Webware\SSE\SseMiddleware;
-use Webware\SSE\SseResponse;
 
 #[CoversClass(SseMiddleware::class)]
 final class SseMiddlewareTest extends TestCase
 {
-    // -------------------------------------------------------------------------
-    // Preprocessor mode (no factory)
-    // -------------------------------------------------------------------------
+    private SseMiddleware $middleware;
 
-    public function testPreprocessorModePassesRequestToNextHandler(): void
+    protected function setUp(): void
     {
-        $middleware = new SseMiddleware();
-        $handler    = $this->makePassthroughHandler();
-
-        $middleware->process(new ServerRequest(), $handler);
-
-        $this->assertNotNull($handler->capturedRequest);
+        $this->middleware = new SseMiddleware();
     }
 
-    public function testPreprocessorModeInjectsLastEventIdAttribute(): void
+    #[Test]
+    public function processReturns406WhenAcceptHeaderIsMissing(): void
     {
-        $middleware = new SseMiddleware();
-        $handler    = $this->makePassthroughHandler();
+        $request  = new ServerRequest();
+        $response = $this->middleware->process($request, $this->makeHandler());
 
-        $request = (new ServerRequest())->withHeader('Last-Event-ID', '7');
-        $middleware->process($request, $handler);
-
-        $this->assertSame('7', $handler->capturedRequest?->getAttribute(SseMiddleware::LAST_EVENT_ID));
+        self::assertSame(406, $response->getStatusCode());
     }
 
-    public function testPreprocessorModeLastEventIdNullWhenHeaderAbsent(): void
+    #[Test]
+    public function processReturns406WhenAcceptIsWrongType(): void
     {
-        $middleware = new SseMiddleware();
-        $handler    = $this->makePassthroughHandler();
+        $request  = (new ServerRequest())->withHeader('Accept', 'text/html');
+        $response = $this->middleware->process($request, $this->makeHandler());
 
-        $middleware->process(new ServerRequest(), $handler);
-
-        $this->assertNull($handler->capturedRequest?->getAttribute(SseMiddleware::LAST_EVENT_ID));
+        self::assertSame(406, $response->getStatusCode());
     }
 
-    public function testPreprocessorModeReturnsHandlerResponse(): void
+    #[Test]
+    public function processDelegatesToHandlerWhenAcceptIsTextEventStream(): void
     {
-        $middleware = new SseMiddleware();
-        $handler    = $this->makePassthroughHandler();
+        $request  = (new ServerRequest())->withHeader('Accept', 'text/event-stream');
+        $response = $this->middleware->process($request, $this->makeHandler());
 
-        $response = $middleware->process(new ServerRequest(), $handler);
-
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('ok', (string) $response->getBody());
+        self::assertSame(200, $response->getStatusCode());
     }
 
-    // -------------------------------------------------------------------------
-    // Terminal factory mode
-    // -------------------------------------------------------------------------
-
-    public function testTerminalModeReturnsSseResponse(): void
+    #[Test]
+    public function processDelegatesToHandlerWhenAcceptContainsTextEventStream(): void
     {
-        $middleware = new SseMiddleware(
-            static function (ServerRequestInterface $req, callable $send, ?string $id): void {
-                $send(new Event(data: 'hello'));
-            },
-        );
+        $request  = (new ServerRequest())->withHeader('Accept', 'text/html, text/event-stream;q=0.9');
+        $response = $this->middleware->process($request, $this->makeHandler());
 
-        $response = $middleware->process(new ServerRequest(), $this->makePassthroughHandler());
-
-        $this->assertInstanceOf(SseResponse::class, $response);
+        self::assertSame(200, $response->getStatusCode());
     }
 
-    public function testTerminalModeDoesNotCallNextHandler(): void
+    private function makeHandler(): RequestHandlerInterface
     {
-        $handler = $this->makePassthroughHandler();
-
-        $middleware = new SseMiddleware(
-            static function (ServerRequestInterface $req, callable $send, ?string $id): void {
-                $send(new Event(data: 'test'));
-            },
-        );
-
-        $middleware->process(new ServerRequest(), $handler);
-
-        $this->assertNull($handler->capturedRequest);
-    }
-
-    public function testTerminalModePassesLastEventIdToFactory(): void
-    {
-        $receivedId = null;
-
-        $middleware = new SseMiddleware(
-            static function (ServerRequestInterface $req, callable $send, ?string $id) use (&$receivedId): void {
-                $receivedId = $id;
-                $send(new Event(data: 'ok'));
-            },
-        );
-
-        $request  = (new ServerRequest())->withHeader('Last-Event-ID', '42');
-        $response = $middleware->process($request, $this->makePassthroughHandler());
-        // Invoke the stream to run the callback.
-        assert($response instanceof SseResponse);
-        ($response->getStream())(fn (EventInterface $e) => null);
-
-        $this->assertSame('42', $receivedId);
-    }
-
-    public function testTerminalModePassesNullLastEventIdWhenHeaderAbsent(): void
-    {
-        $receivedId = 'NOT_NULL';
-
-        $middleware = new SseMiddleware(
-            static function (ServerRequestInterface $req, callable $send, ?string $id) use (&$receivedId): void {
-                $receivedId = $id;
-                $send(new Event(data: 'ok'));
-            },
-        );
-
-        $response = $middleware->process(new ServerRequest(), $this->makePassthroughHandler());
-        // Invoke the stream to run the callback.
-        assert($response instanceof SseResponse);
-        ($response->getStream())(fn (EventInterface $e) => null);
-
-        $this->assertNull($receivedId);
-    }
-
-    public function testLastEventIdConstantValue(): void
-    {
-        // @phpstan-ignore method.alreadyNarrowedType
-        $this->assertSame('SSE_LAST_EVENT_ID', SseMiddleware::LAST_EVENT_ID);
-    }
-
-    /**
-     * @phpstan-return RequestHandlerInterface&object{capturedRequest: ServerRequestInterface|null}
-     */
-    private function makePassthroughHandler(): RequestHandlerInterface
-    {
-        return new class() implements RequestHandlerInterface {
-            public ?ServerRequestInterface $capturedRequest = null;
-
+        return new class() extends stdClass implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
-                $this->capturedRequest = $request;
-
                 return new TextResponse('ok');
             }
         };

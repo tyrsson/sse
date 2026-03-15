@@ -14,36 +14,33 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
-use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
 use Laminas\HttpHandlerRunner\Emitter\EmitterStack;
+use Laminas\ServiceManager\Factory\DelegatorFactoryInterface;
 use Psr\Container\ContainerInterface;
-use RuntimeException;
 
 /**
- * @internal
+ * @template-implements DelegatorFactoryInterface<EmitterStack>
  */
-final readonly class EmitterStackDelegatorFactory
+final class SseEmitterDelegatorFactory implements DelegatorFactoryInterface
 {
     /**
-     * @phpstan-param null|array<mixed> $options
+     * Push SseEmitter onto the top of the EmitterStack so it is checked first.
+     *
+     * SseEmitter returns false for non-SseResponse instances and lets the
+     * next emitter (SapiEmitter) handle them.
+     *
+     * @param array<mixed>|null $options
      */
     public function __invoke(
         ContainerInterface $container,
         string $name,
         callable $callback,
         ?array $options = null,
-    ): EmitterInterface {
+    ): EmitterStack {
         /** @var EmitterStack $stack */
         $stack = $callback();
 
-        if (! $stack instanceof EmitterStack) {
-            throw new RuntimeException(sprintf('Expected the service "%s" to be an instance of %s; received %s', $name, EmitterStack::class, is_object($stack) ? get_class($stack) : gettype($stack)));
-        }
-
-        $sseEmitter = $container->get(SseEmitter::class);
-
-        // Add our SseEmitter to the stack.
-        $stack->push($sseEmitter);
+        $stack->push($container->get(SseEmitter::class));
 
         return $stack;
     }

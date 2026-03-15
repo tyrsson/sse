@@ -14,71 +14,49 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
+use Fiber;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
-/**
- * Base class for PSR-15 request handlers that produce Server-Sent Event
- * streams.
- *
- * Extend this class and implement the {@see stream()} method.  Invoke
- * $send with each {@see EventInterface} you want to push to the client:
- *
- *   final class StockTickerHandler extends AbstractSseHandler
- *   {
- *       protected function stream(
- *           ServerRequestInterface $request,
- *           callable $send,
- *           ?string $lastEventId,
- *       ): void {
- *           $cursor = $lastEventId ?? '0';
- *           while (true) {
- *               $events = $this->stockService->getEventsSince($cursor);
- *               foreach ($events as $e) {
- *                   $cursor = $e->id;
- *                   $send(new Event(data: json_encode($e), id: $cursor));
- *               }
- *               if (connection_aborted()) break;
- *               sleep(1);
- *           }
- *       }
- *   }
- *
- * Reconnection is handled transparently: the browser's EventSource API sends
- * the last received event id in the "Last-Event-ID" request header on
- * reconnect.  This class extracts that value and passes it to stream() so
- * that application code can resume from the correct position.
- */
 abstract class AbstractSseHandler implements RequestHandlerInterface
 {
-    /**
-     * Build and return an SseResponse wrapping the event stream.
-     *
-     * The Last-Event-ID header is extracted from the request and forwarded to
-     * the stream() implementation.  An empty header value is normalised to null.
-     */
-    public function handle(ServerRequestInterface $request): ResponseInterface
+    final public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        $lastEventId = $request->getHeaderLine('Last-Event-ID');
-        $lastEventId = $lastEventId !== '' ? $lastEventId : null;
+        $lastEventId = $request->getHeaderLine('Last-Event-ID') ?: null;
 
-        return new SseResponse(
-            fn (callable $send) => $this->stream($request, $send, $lastEventId),
-        );
+        $send = static function (Event $event): void {
+            Fiber::suspend($event);
+        };
+
+        /** @var Fiber<mixed,mixed,mixed,mixed> $fiber */
+        $fiber = new Fiber(function () use ($request, $send, $lastEventId): void {
+            $this->stream($request, $send, $lastEventId);
+        });
+
+        return new SseResponse($fiber);
     }
 
     /**
-     * Produce the event stream.
+     * Implement this method to produce SSE events.
      *
-     * Call $send with each {@see EventInterface} to push it to the connected
-     * client.  Return (or let execution fall off the end) to close the stream.
-     * Check connection_aborted() to detect a disconnected client inside loops.
+     * Call $send(new Event(...)) to push an event to the client.
+     * The call to $send() suspends the Fiber, giving the SseEmitter a chance
+     * to write and flush the event before resuming.
      *
-     * @param ServerRequestInterface $request The current PSR-7 request.
-     * @param callable(EventInterface): void $send Push an event to the client.
-     * @param string|null $lastEventId The last event id the client
-     *                                 received, or null on first connect.
+     * Example:
+     *
+     *   protected function stream(
+     *       ServerRequestInterface $request,
+     *       callable $send,
+     *       ?string $lastEventId,
+     *   ): void {
+     *       while (true) {
+     *           $send(new Event(data: date('H:i:s'), event: 'tick'));
+     *           if (connection_aborted()) break;
+     *           sleep(1);
+     *       }
+     *   }
      */
     abstract protected function stream(
         ServerRequestInterface $request,

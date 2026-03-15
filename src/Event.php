@@ -14,73 +14,37 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
-/**
- * Immutable value object representing a single Server-Sent Event.
- *
- * Usage from a stream callable:
- *
- *   $send(new Event(data: 'hello'));
- *   $send(new Event(data: 'tick', event: 'clock', id: '42', retry: 5000));
- *   $send(new Event(data: "line one\nline two"));  // multi-line data
- */
-final class Event implements EventInterface
+use JsonException;
+use JsonSerializable;
+
+use function json_encode;
+
+use const JSON_THROW_ON_ERROR;
+
+final readonly class Event
 {
+    /**
+     * @param JsonSerializable|string $data Raw HTML string or JSON-serializable payload.
+     *                                      Strings are sent as-is; objects are JSON-encoded.
+     * @param string|null $event Named SSE event type (htmx uses this for targeting).
+     * @param string|null $id Event ID for Last-Event-ID reconnect tracking.
+     * @param int|null $retry Reconnection hint in milliseconds.
+     */
     public function __construct(
-        private readonly string $data,
-        private readonly ?string $id = null,
-        private readonly ?string $event = null,
-        private readonly ?int $retry = null,
-        private readonly ?string $comment = null,
+        public readonly string|JsonSerializable $data,
+        public readonly ?string $event = null,
+        public readonly ?string $id = null,
+        public readonly ?int $retry = null,
     ) {}
 
-    public function getId(): ?string
-    {
-        return $this->id;
-    }
-
-    public function getEvent(): ?string
-    {
-        return $this->event;
-    }
-
-    public function getData(): string
-    {
-        return $this->data;
-    }
-
-    public function getRetry(): ?int
-    {
-        return $this->retry;
-    }
-
-    public function getComment(): ?string
-    {
-        return $this->comment;
-    }
-
     /**
-     * Serialises the event into the SSE wire format.
+     * Serialize the event to the SSE wire format.
      *
-     * Field order follows the SSE specification recommendation:
-     *   1. comment  (": <comment>")
-     *   2. retry    ("retry: <ms>")
-     *   3. id       ("id: <id>")
-     *   4. event    ("event: <type>")
-     *   5. data     ("data: <line>" — one line per "\n" in the payload)
-     *
-     * The block is terminated by a blank line ("\n\n") to dispatch the event.
+     * @throws JsonException
      */
-    public function format(): string
+    public function toWireFormat(): string
     {
         $output = '';
-
-        if ($this->comment !== null) {
-            $output .= ': ' . $this->comment . "\n";
-        }
-
-        if ($this->retry !== null) {
-            $output .= 'retry: ' . $this->retry . "\n";
-        }
 
         if ($this->id !== null) {
             $output .= 'id: ' . $this->id . "\n";
@@ -90,10 +54,18 @@ final class Event implements EventInterface
             $output .= 'event: ' . $this->event . "\n";
         }
 
-        foreach (explode("\n", $this->data) as $line) {
-            $output .= 'data: ' . $line . "\n";
+        $data = $this->data instanceof JsonSerializable
+            ? json_encode($this->data, JSON_THROW_ON_ERROR)
+            : $this->data;
+
+        $output .= 'data: ' . $data . "\n";
+
+        if ($this->retry !== null) {
+            $output .= 'retry: ' . $this->retry . "\n";
         }
 
-        return $output . "\n";
+        $output .= "\n";
+
+        return $output;
     }
 }
