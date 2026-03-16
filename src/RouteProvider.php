@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 /**
- * This file is part of the Tyrsson Webinertia package.
+ * This file is part of the Webware Sse package.
  *
- * Copyright (c) 2026 Joey Smith <jsmith@webinertia.net>
+ * Copyright (c) 2026 Joey (aka Tyrsson) Smith <jsmith@webinertia.net>
  * and contributors.
  *
  * For the full copyright and license information, please view the LICENSE
@@ -26,7 +26,6 @@ final class RouteProvider implements RouteProviderInterface
         RouteCollectorInterface $routeCollector,
         MiddlewareFactoryInterface $middlewareFactory,
     ): void {
-
         $routeCollector->get(
             '/notifications',
             $middlewareFactory->prepare(

@@ -12,12 +12,13 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Webware\SSE;
+namespace Webware\SSE\Container;
 
 use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
 use Laminas\HttpHandlerRunner\Emitter\EmitterStack;
 use Psr\Container\ContainerInterface;
 use RuntimeException;
+use Webware\SSE\SseEmitter;
 
 /**
  * @internal

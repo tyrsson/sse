@@ -16,6 +16,7 @@ namespace Webware\SSE;
 
 use Laminas\HttpHandlerRunner\Emitter\EmitterInterface;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitterTrait;
+use Override;
 use Psr\Http\Message\ResponseInterface;
 use RuntimeException;
 
@@ -48,6 +49,7 @@ final class SseEmitter implements EmitterInterface
      *
      * @throws RuntimeException When headers have already been sent.
      */
+    #[Override]
     public function emit(ResponseInterface $response): bool
     {
         if (! $response instanceof SseResponse) {

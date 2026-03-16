@@ -23,7 +23,7 @@ use Psr\Container\ContainerInterface;
  * it to the SseEmitter constructor so that it can resolve "webware_sse"
  * configuration such as the heartbeat interval.
  */
-final class SseEmitterFactory
+final readonly class SseEmitterFactory
 {
     /**
      * @param array<mixed>|null $options

@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 /**
- * This file is part of the Tyrsson Webinertia package.
+ * This file is part of the Webware Sse package.
  *
- * Copyright (c) 2026 Joey Smith <jsmith@webinertia.net>
+ * Copyright (c) 2026 Joey (aka Tyrsson) Smith <jsmith@webinertia.net>
  * and contributors.
  *
  * For the full copyright and license information, please view the LICENSE
@@ -16,6 +16,7 @@ namespace Webware\SSE;
 
 use Axleus\Message\SystemMessengerInterface;
 use Laminas\View\Helper\Partial;
+use Override;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -26,6 +27,7 @@ final class NotificationHandler implements RequestHandlerInterface
         private readonly Partial $partialHelper,
     ) {}
 
+    #[Override]
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $lastEventId = $request->getHeaderLine('ID');
@@ -47,7 +49,7 @@ final class NotificationHandler implements RequestHandlerInterface
                 continue;
             }
 
-            $html = ($this->partialHelper)('sse::'.$level, [
+            $html = ($this->partialHelper)('sse::' . $level, [
                 'level'   => (string) $level,
                 'message' => $message,
             ]);
