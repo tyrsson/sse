@@ -47,17 +47,23 @@ return (new ConfigAggregator([
 ]))->getMergedConfig();
 ```
 
-### 3. Ensure `SapiEmitter` is on the stack
+### 3. Ensure `SapiEmitter` is on the stack (optional advanced usage)
 
 `ConfigProvider` registers a delegator that pushes `SseEmitter` onto the `EmitterStack`. You must still push `SapiEmitter` below it so that ordinary responses are handled:
 
 ```php
-// public/index.php
-use Laminas\HttpHandlerRunner\Emitter\EmitterStack;
-use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
-
-$stack = $container->get(EmitterStack::class); // SseEmitter already pushed by delegator
-$stack->push(new SapiEmitter());               // fallback for non-SSE responses
+// register the delegator factory in ConfigProvider
+    public function getDependencies(): array
+    {
+        return [
+            'delegators' => [
+                EmitterInterface::class => [
+                    Container\EmitterStackDelegatorFactory::class,
+                ],
+            ],
+            //....
+        ];
+    }
 ```
 
 ### 4. Register routes

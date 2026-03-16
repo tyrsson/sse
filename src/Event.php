@@ -14,6 +14,8 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
+use Override;
+
 use PHP_EOL;
 
 /**
@@ -21,10 +23,14 @@ use PHP_EOL;
  */
 final class Event implements EventInterface
 {
-    public const FIELD_EVENT   = 'event: ';
-    public const FIELD_DATA    = 'data: ';
-    public const FIELD_ID      = 'id: ';
-    public const FIELD_RETRY   = 'retry: ';
+    public const FIELD_EVENT = 'event: ';
+
+    public const FIELD_DATA = 'data: ';
+
+    public const FIELD_ID = 'id: ';
+
+    public const FIELD_RETRY = 'retry: ';
+
     public const FIELD_COMMENT = ': ';
 
     public function __construct(
@@ -35,26 +41,37 @@ final class Event implements EventInterface
         private readonly ?string $comment = null,
     ) {}
 
+    #[Override]
+    public function __toString(): string
+    {
+        return $this->format();
+    }
+
+    #[Override]
     public function getId(): ?string
     {
         return $this->id;
     }
 
+    #[Override]
     public function getEvent(): ?string
     {
         return $this->event;
     }
 
+    #[Override]
     public function getData(): string
     {
         return $this->data;
     }
 
+    #[Override]
     public function getRetry(): ?int
     {
         return $this->retry;
     }
 
+    #[Override]
     public function getComment(): ?string
     {
         return $this->comment;
@@ -72,6 +89,7 @@ final class Event implements EventInterface
      *
      * The block is terminated by a blank line (PHP_EOL . PHP_EOL) to dispatch the event.
      */
+    #[Override]
     public function format(): string
     {
         $output = '';
@@ -97,10 +115,5 @@ final class Event implements EventInterface
         }
 
         return $output . PHP_EOL;
-    }
-
-    public function __toString(): string
-    {
-        return $this->format();
     }
 }
