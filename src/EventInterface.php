@@ -14,7 +14,9 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
-interface EventInterface
+use Stringable;
+
+interface EventInterface extends Stringable
 {
     /**
      * Returns the event id, or null if not set.

@@ -14,21 +14,23 @@ declare(strict_types=1);
 
 namespace Webware\SSE;
 
+use PHP_EOL;
+
 /**
  * Immutable value object representing a single Server-Sent Event.
- *
- * Usage from a stream callable:
- *
- *   $send(new Event(data: 'hello'));
- *   $send(new Event(data: 'tick', event: 'clock', id: '42', retry: 5000));
- *   $send(new Event(data: "line one\nline two"));  // multi-line data
  */
 final class Event implements EventInterface
 {
+    public const FIELD_EVENT   = 'event: ';
+    public const FIELD_DATA    = 'data: ';
+    public const FIELD_ID      = 'id: ';
+    public const FIELD_RETRY   = 'retry: ';
+    public const FIELD_COMMENT = ': ';
+
     public function __construct(
         private readonly string $data,
-        private readonly ?string $id = null,
         private readonly ?string $event = null,
+        private readonly ?string $id = null,
         private readonly ?int $retry = null,
         private readonly ?string $comment = null,
     ) {}
@@ -62,38 +64,43 @@ final class Event implements EventInterface
      * Serialises the event into the SSE wire format.
      *
      * Field order follows the SSE specification recommendation:
-     *   1. comment  (": <comment>")
-     *   2. retry    ("retry: <ms>")
-     *   3. id       ("id: <id>")
-     *   4. event    ("event: <type>")
-     *   5. data     ("data: <line>" — one line per "\n" in the payload)
+     *   - event
+     *   - data
+     *   - id
+     *   - retry
+     *   - comment
      *
-     * The block is terminated by a blank line ("\n\n") to dispatch the event.
+     * The block is terminated by a blank line (PHP_EOL . PHP_EOL) to dispatch the event.
      */
     public function format(): string
     {
         $output = '';
 
-        if ($this->comment !== null) {
-            $output .= ': ' . $this->comment . "\n";
+        if ($this->event !== null) {
+            $output .= self::FIELD_EVENT . $this->event . PHP_EOL;
         }
 
-        if ($this->retry !== null) {
-            $output .= 'retry: ' . $this->retry . "\n";
+        foreach (explode(PHP_EOL, $this->data) as $line) {
+            $output .= self::FIELD_DATA . $line . PHP_EOL;
         }
 
         if ($this->id !== null) {
-            $output .= 'id: ' . $this->id . "\n";
+            $output .= self::FIELD_ID . $this->id . PHP_EOL;
         }
 
-        if ($this->event !== null) {
-            $output .= 'event: ' . $this->event . "\n";
+        if ($this->retry !== null) {
+            $output .= self::FIELD_RETRY . $this->retry . PHP_EOL;
         }
 
-        foreach (explode("\n", $this->data) as $line) {
-            $output .= 'data: ' . $line . "\n";
+        if ($this->comment !== null) {
+            $output .= self::FIELD_COMMENT . $this->comment . PHP_EOL;
         }
 
-        return $output . "\n";
+        return $output . PHP_EOL;
+    }
+
+    public function __toString(): string
+    {
+        return $this->format();
     }
 }
