@@ -4,8 +4,211 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "43e9d8f5ab2cc49abe473d4e90a51b63",
+    "content-hash": "849d1f69e9a0e9c7e5098aa3c96c106d",
     "packages": [
+        {
+            "name": "axleus/axleus-message",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/axleus/axleus-message.git",
+                "reference": "6762501d4ccfdef456448fbb25a9ec41b2d54f2c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/axleus/axleus-message/zipball/6762501d4ccfdef456448fbb25a9ec41b2d54f2c",
+                "reference": "6762501d4ccfdef456448fbb25a9ec41b2d54f2c",
+                "shasum": ""
+            },
+            "require": {
+                "mezzio/mezzio-session-ext": "^1.21.0",
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+                "webware/command-bus": "^0.5.0"
+            },
+            "require-dev": {
+                "axleus/axleus-mailer": "dev-master",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpunit/phpunit": "^11.5.42",
+                "psr/http-message": "^2.0",
+                "psr/http-server-handler": "^1.0",
+                "psr/http-server-middleware": "^1.0",
+                "roave/security-advisories": "dev-master",
+                "webware/coding-standard": "^0.1.0",
+                "webware/commandbus-event": "0.1.x-dev",
+                "webware/traccio": "^0.1.0"
+            },
+            "default-branch": true,
+            "type": "library",
+            "extra": {
+                "laminas": {
+                    "config-provider": "Axleus\\Message\\ConfigProvider"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Axleus\\Message\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Joey Smith",
+                    "email": "jsmith@webinertia.net"
+                }
+            ],
+            "description": "Webware CommandBus driven message service for axleus applications",
+            "homepage": "https://github.com/orgs/axleus/discussions",
+            "keywords": [
+                "axleus",
+                "message abstraction",
+                "mezzio"
+            ],
+            "support": {
+                "chat": "https://discord.gg/9TxQ74EPsG",
+                "issues": "https://github.com/axleus/axleus-message/issues",
+                "source": "https://github.com/axleus/axleus-message/tree/master"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/AXLEUS",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-03-15T20:24:29+00:00"
+        },
+        {
+            "name": "beberlei/assert",
+            "version": "v3.3.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/beberlei/assert.git",
+                "reference": "b5fd8eacd8915a1b627b8bfc027803f1939734dd"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/beberlei/assert/zipball/b5fd8eacd8915a1b627b8bfc027803f1939734dd",
+                "reference": "b5fd8eacd8915a1b627b8bfc027803f1939734dd",
+                "shasum": ""
+            },
+            "require": {
+                "ext-ctype": "*",
+                "ext-json": "*",
+                "ext-mbstring": "*",
+                "ext-simplexml": "*",
+                "php": "^7.1 || ^8.0"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "*",
+                "phpstan/phpstan": "*",
+                "phpunit/phpunit": ">=6.0.0",
+                "yoast/phpunit-polyfills": "^0.1.0"
+            },
+            "suggest": {
+                "ext-intl": "Needed to allow Assertion::count(), Assertion::isCountable(), Assertion::minCount(), and Assertion::maxCount() to operate on ResourceBundles"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "lib/Assert/functions.php"
+                ],
+                "psr-4": {
+                    "Assert\\": "lib/Assert"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-2-Clause"
+            ],
+            "authors": [
+                {
+                    "name": "Benjamin Eberlei",
+                    "email": "kontakt@beberlei.de",
+                    "role": "Lead Developer"
+                },
+                {
+                    "name": "Richard Quadling",
+                    "email": "rquadling@gmail.com",
+                    "role": "Collaborator"
+                }
+            ],
+            "description": "Thin assertion library for input validation in business models.",
+            "keywords": [
+                "assert",
+                "assertion",
+                "validation"
+            ],
+            "support": {
+                "issues": "https://github.com/beberlei/assert/issues",
+                "source": "https://github.com/beberlei/assert/tree/v3.3.3"
+            },
+            "time": "2024-07-15T13:18:35+00:00"
+        },
+        {
+            "name": "dflydev/fig-cookies",
+            "version": "v3.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/dflydev/dflydev-fig-cookies.git",
+                "reference": "f9c63878e75483800477db4f897237b36556617b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/dflydev/dflydev-fig-cookies/zipball/f9c63878e75483800477db4f897237b36556617b",
+                "reference": "f9c63878e75483800477db4f897237b36556617b",
+                "shasum": ""
+            },
+            "require": {
+                "ext-pcre": "*",
+                "php": "^7.2 || ^8.0",
+                "psr/http-message": "^1.0.1 || ^2"
+            },
+            "require-dev": {
+                "doctrine/coding-standard": "^8",
+                "phpstan/extension-installer": "^1.0",
+                "phpstan/phpstan": "^0.12",
+                "phpstan/phpstan-phpunit": "^0.12.16",
+                "phpunit/phpunit": "^7.2.6 || ^9",
+                "scrutinizer/ocular": "^1.8",
+                "squizlabs/php_codesniffer": "^3.3",
+                "vimeo/psalm": "^4.4"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "3.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Dflydev\\FigCookies\\": "src/Dflydev/FigCookies"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Beau Simensen",
+                    "email": "beau@dflydev.com"
+                }
+            ],
+            "description": "Cookies for PSR-7 HTTP Message Interface.",
+            "keywords": [
+                "cookies",
+                "psr-7",
+                "psr7"
+            ],
+            "support": {
+                "issues": "https://github.com/dflydev/dflydev-fig-cookies/issues",
+                "source": "https://github.com/dflydev/dflydev-fig-cookies/tree/v3.2.0"
+            },
+            "time": "2025-09-03T20:01:04+00:00"
+        },
         {
             "name": "laminas/laminas-diactoros",
             "version": "3.8.0",
@@ -160,6 +363,156 @@
                 }
             ],
             "time": "2025-10-12T20:58:29+00:00"
+        },
+        {
+            "name": "mezzio/mezzio-session",
+            "version": "1.17.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mezzio/mezzio-session.git",
+                "reference": "215095b4445283f2d527c1edc3338aa1ffbe3067"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mezzio/mezzio-session/zipball/215095b4445283f2d527c1edc3338aa1ffbe3067",
+                "reference": "215095b4445283f2d527c1edc3338aa1ffbe3067",
+                "shasum": ""
+            },
+            "require": {
+                "dflydev/fig-cookies": "^3.0",
+                "ext-json": "*",
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+                "psr/container": "^1.0 || ^2.0",
+                "psr/http-server-middleware": "^1.0"
+            },
+            "conflict": {
+                "zendframework/zend-expressive-session": "*"
+            },
+            "require-dev": {
+                "laminas/laminas-coding-standard": "~3.1.0",
+                "laminas/laminas-diactoros": "^3.6.0",
+                "phpunit/phpunit": "^11.5.42",
+                "psalm/plugin-phpunit": "^0.19.5",
+                "vimeo/psalm": "^6.13.1"
+            },
+            "suggest": {
+                "mezzio/mezzio-csrf": "^1.0 || ^1.0-dev for CSRF protection capabilities",
+                "mezzio/mezzio-flash": "^1.0 || ^1.0-dev for flash message capabilities",
+                "mezzio/mezzio-session-ext": "^1.0 || ^1.0-dev for an ext-session persistence adapter"
+            },
+            "type": "library",
+            "extra": {
+                "laminas": {
+                    "config-provider": "Mezzio\\Session\\ConfigProvider"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Mezzio\\Session\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "Session container and middleware for PSR-7 applications",
+            "homepage": "https://mezzio.dev",
+            "keywords": [
+                "laminas",
+                "mezzio",
+                "middleware",
+                "psr-7",
+                "session"
+            ],
+            "support": {
+                "chat": "https://laminas.dev/chat",
+                "docs": "https://docs.mezzio.dev/mezzio-session/",
+                "forum": "https://discourse.laminas.dev",
+                "issues": "https://github.com/mezzio/mezzio-session/issues",
+                "rss": "https://github.com/mezzio/mezzio-session/releases.atom",
+                "source": "https://github.com/mezzio/mezzio-session"
+            },
+            "funding": [
+                {
+                    "url": "https://funding.communitybridge.org/projects/laminas-project",
+                    "type": "community_bridge"
+                }
+            ],
+            "time": "2025-10-11T18:36:13+00:00"
+        },
+        {
+            "name": "mezzio/mezzio-session-ext",
+            "version": "1.21.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/mezzio/mezzio-session-ext.git",
+                "reference": "c8fe92d67961c23ad222653d61fbb004959e40c8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/mezzio/mezzio-session-ext/zipball/c8fe92d67961c23ad222653d61fbb004959e40c8",
+                "reference": "c8fe92d67961c23ad222653d61fbb004959e40c8",
+                "shasum": ""
+            },
+            "require": {
+                "ext-session": "*",
+                "mezzio/mezzio-session": "^1.4",
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0"
+            },
+            "conflict": {
+                "amphp/amp": "<2.6.4",
+                "zendframework/zend-expressive-session-ext": "*"
+            },
+            "require-dev": {
+                "amphp/dns": "^1.24 || ^2.1.2",
+                "amphp/socket": "^1.2.1 || ^2.3.1",
+                "dflydev/fig-cookies": "^3.2",
+                "laminas/laminas-coding-standard": "~3.1.0",
+                "laminas/laminas-diactoros": "^3.7",
+                "phpunit/phpunit": "^11.5.42",
+                "psalm/plugin-phpunit": "^0.19.5",
+                "vimeo/psalm": "^6.13.1"
+            },
+            "type": "library",
+            "extra": {
+                "laminas": {
+                    "config-provider": "Mezzio\\Session\\Ext\\ConfigProvider"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Mezzio\\Session\\Ext\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "ext-session persistence adapter for mezzio-session",
+            "homepage": "https://mezzio.dev",
+            "keywords": [
+                "components",
+                "ext-session",
+                "laminas",
+                "mezzio",
+                "psr-7",
+                "session"
+            ],
+            "support": {
+                "chat": "https://laminas.dev/chat",
+                "docs": "https://docs.mezzio.dev/mezzio-session-ext/",
+                "forum": "https://discourse.laminas.dev",
+                "issues": "https://github.com/mezzio/mezzio-session-ext/issues",
+                "rss": "https://github.com/mezzio/mezzio-session-ext/releases.atom",
+                "source": "https://github.com/mezzio/mezzio-session-ext"
+            },
+            "funding": [
+                {
+                    "url": "https://funding.communitybridge.org/projects/laminas-project",
+                    "type": "community_bridge"
+                }
+            ],
+            "time": "2025-10-12T22:31:09+00:00"
         },
         {
             "name": "psr/container",
@@ -434,6 +787,69 @@
                 "source": "https://github.com/php-fig/http-server-middleware/tree/1.0.2"
             },
             "time": "2023-04-11T06:14:47+00:00"
+        },
+        {
+            "name": "webware/command-bus",
+            "version": "0.5.x-dev",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/tyrsson/command-bus.git",
+                "reference": "a890ff2cfba13342146de6cb6b6f4deee0b6062d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/tyrsson/command-bus/zipball/a890ff2cfba13342146de6cb6b6f4deee0b6062d",
+                "reference": "a890ff2cfba13342146de6cb6b6f4deee0b6062d",
+                "shasum": ""
+            },
+            "require": {
+                "beberlei/assert": "^3.3",
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+                "psr/container": "^2.0"
+            },
+            "require-dev": {
+                "laminas/laminas-coding-standard": "^3.0.1",
+                "laminas/laminas-servicemanager": "^4.0.0",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpunit/phpunit": "^11.5.42"
+            },
+            "suggest": {
+                "laminas/laminas-servicemanager": "Laminas\\ServiceManager component"
+            },
+            "default-branch": true,
+            "type": "library",
+            "extra": {
+                "laminas": {
+                    "config-provider": "Webware\\CommandBus\\ConfigProvider"
+                }
+            },
+            "autoload": {
+                "files": [
+                    "src/functions/priority_queue_reducer_factory.php",
+                    "src/functions/collection_mapper_factory.php"
+                ],
+                "psr-4": {
+                    "Webware\\CommandBus\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "CommandBus for Mezzio",
+            "homepage": "https://github.com/tyrsson/command-bus/discussions",
+            "keywords": [
+                "commandbus",
+                "mezzio",
+                "webware"
+            ],
+            "support": {
+                "forum": "https://github.com/tyrsson/command-bus/discussions",
+                "issues": "https://github.com/tyrsson/command-bus/issues",
+                "source": "https://github.com/tyrsson/command-bus"
+            },
+            "time": "2025-12-27T11:07:47+00:00"
         }
     ],
     "packages-dev": [
@@ -985,6 +1401,67 @@
             "time": "2026-02-20T16:13:53+00:00"
         },
         {
+            "name": "laminas/laminas-escaper",
+            "version": "2.18.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laminas/laminas-escaper.git",
+                "reference": "06f211dfffff18d91844c1f55250d5d13c007e18"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laminas/laminas-escaper/zipball/06f211dfffff18d91844c1f55250d5d13c007e18",
+                "reference": "06f211dfffff18d91844c1f55250d5d13c007e18",
+                "shasum": ""
+            },
+            "require": {
+                "ext-ctype": "*",
+                "ext-mbstring": "*",
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0"
+            },
+            "conflict": {
+                "zendframework/zend-escaper": "*"
+            },
+            "require-dev": {
+                "infection/infection": "^0.31.0",
+                "laminas/laminas-coding-standard": "~3.1.0",
+                "phpunit/phpunit": "^11.5.42",
+                "psalm/plugin-phpunit": "^0.19.5",
+                "vimeo/psalm": "^6.13.1"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Laminas\\Escaper\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "Securely and safely escape HTML, HTML attributes, JavaScript, CSS, and URLs",
+            "homepage": "https://laminas.dev",
+            "keywords": [
+                "escaper",
+                "laminas"
+            ],
+            "support": {
+                "chat": "https://laminas.dev/chat",
+                "docs": "https://docs.laminas.dev/laminas-escaper/",
+                "forum": "https://discourse.laminas.dev",
+                "issues": "https://github.com/laminas/laminas-escaper/issues",
+                "rss": "https://github.com/laminas/laminas-escaper/releases.atom",
+                "source": "https://github.com/laminas/laminas-escaper"
+            },
+            "funding": [
+                {
+                    "url": "https://funding.communitybridge.org/projects/laminas-project",
+                    "type": "community_bridge"
+                }
+            ],
+            "time": "2025-10-14T18:31:13+00:00"
+        },
+        {
             "name": "laminas/laminas-servicemanager",
             "version": "4.5.0",
             "source": {
@@ -1127,6 +1604,142 @@
                 }
             ],
             "time": "2025-10-11T18:13:12+00:00"
+        },
+        {
+            "name": "laminas/laminas-translator",
+            "version": "1.3.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laminas/laminas-translator.git",
+                "reference": "1d6bf7d857c3fc310a30f5ea028731b9bf8be9db"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laminas/laminas-translator/zipball/1d6bf7d857c3fc310a30f5ea028731b9bf8be9db",
+                "reference": "1d6bf7d857c3fc310a30f5ea028731b9bf8be9db",
+                "shasum": ""
+            },
+            "require": {
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0"
+            },
+            "require-dev": {
+                "laminas/laminas-coding-standard": "~3.1.0",
+                "phpunit/phpunit": "^11.5.46",
+                "vimeo/psalm": "^6.14.3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Laminas\\Translator\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "Interfaces for the Translator component of laminas-i18n",
+            "homepage": "https://laminas.dev",
+            "keywords": [
+                "i18n",
+                "laminas"
+            ],
+            "support": {
+                "chat": "https://laminas.dev/chat",
+                "docs": "https://docs.laminas.dev/laminas-i18n/",
+                "forum": "https://discourse.laminas.dev",
+                "issues": "https://github.com/laminas/laminas-translator/issues",
+                "rss": "https://github.com/laminas/laminas-translator/releases.atom",
+                "source": "https://github.com/laminas/laminas-translator"
+            },
+            "funding": [
+                {
+                    "url": "https://funding.communitybridge.org/projects/laminas-project",
+                    "type": "community_bridge"
+                }
+            ],
+            "time": "2025-12-30T14:26:45+00:00"
+        },
+        {
+            "name": "laminas/laminas-view",
+            "version": "3.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laminas/laminas-view.git",
+                "reference": "c7f8af6e20a46306fe577cf730474a337ce4d1fd"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laminas/laminas-view/zipball/c7f8af6e20a46306fe577cf730474a337ce4d1fd",
+                "reference": "c7f8af6e20a46306fe577cf730474a337ce4d1fd",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "laminas/laminas-escaper": "^2.17.0",
+                "laminas/laminas-servicemanager": "^4.4.0",
+                "laminas/laminas-stdlib": "^3.10.1",
+                "laminas/laminas-translator": "^1.1",
+                "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+                "psr/container": "^1 || ^2"
+            },
+            "require-dev": {
+                "amphp/dns": "^2.4.0",
+                "amphp/socket": "^2.3.1",
+                "laminas/laminas-coding-standard": "~3.1.0",
+                "phpunit/phpunit": "^11.5.44",
+                "psalm/plugin-phpunit": "^0.19.5",
+                "symfony/console": "^6.4.26 || v7.3.3",
+                "vimeo/psalm": "^6.13.1"
+            },
+            "suggest": {
+                "laminas/laminas-authentication": "Laminas\\Authentication component",
+                "laminas/laminas-cli": "Laminas\\Cli component to autowire the template map generator utility",
+                "laminas/laminas-feed": "Laminas\\Feed component",
+                "laminas/laminas-filter": "Laminas\\Filter component",
+                "laminas/laminas-i18n": "Laminas\\I18n component",
+                "laminas/laminas-navigation": "Laminas\\Navigation component",
+                "laminas/laminas-paginator": "Laminas\\Paginator component",
+                "laminas/laminas-permissions-acl": "Laminas\\Permissions\\Acl component"
+            },
+            "type": "library",
+            "extra": {
+                "laminas": {
+                    "config-provider": "Laminas\\View\\ConfigProvider"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Laminas\\View\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "Fast and type safe HTML templating library with a flexible plugin system supporting multistep template composition",
+            "homepage": "https://laminas.dev",
+            "keywords": [
+                "html",
+                "laminas",
+                "templates",
+                "templating",
+                "view"
+            ],
+            "support": {
+                "chat": "https://laminas.dev/chat",
+                "docs": "https://docs.laminas.dev/laminas-view/",
+                "forum": "https://discourse.laminas.dev",
+                "issues": "https://github.com/laminas/laminas-view/issues",
+                "rss": "https://github.com/laminas/laminas-view/releases.atom",
+                "source": "https://github.com/laminas/laminas-view"
+            },
+            "funding": [
+                {
+                    "url": "https://funding.communitybridge.org/projects/laminas-project",
+                    "type": "community_bridge"
+                }
+            ],
+            "time": "2025-11-22T14:55:13+00:00"
         },
         {
             "name": "myclabs/deep-copy",
@@ -6151,6 +6764,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
+        "axleus/axleus-message": 20,
         "roave/security-advisories": 20
     },
     "prefer-stable": true,
